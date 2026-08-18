@@ -33,8 +33,8 @@ const InviteMemberDialog = ({ isDialogOpen, setIsDialogOpen }) => {
     if (!isDialogOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-xl p-6 w-full max-w-md text-zinc-900 dark:text-zinc-200">
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-zinc-900/90 dark:backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/90 rounded-2xl p-6 w-full max-w-md text-zinc-900 dark:text-zinc-200 shadow-2xl">
                 {/* Header */}
                 <div className="mb-4">
                     <h2 className="text-xl font-bold flex items-center gap-2">

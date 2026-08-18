@@ -29,10 +29,10 @@ const ProjectOverview = () => {
     }, [currentWorkspace]);
 
     return currentWorkspace && (
-        <div className="bg-white dark:bg-zinc-950 dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 rounded-lg overflow-hidden">
-            <div className="border-b border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between">
-                <h2 className="text-md text-zinc-800 dark:text-zinc-300">Project Overview</h2>
-                <Link to={'/projects'} className="text-sm text-zinc-600 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300 flex items-center">
+        <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 rounded-xl overflow-hidden shadow-xs">
+            <div className="border-b border-zinc-200 dark:border-zinc-800/80 p-4 flex items-center justify-between">
+                <h2 className="text-md font-semibold text-zinc-800 dark:text-zinc-200">Project Overview</h2>
+                <Link to={'/projects'} className="text-sm text-zinc-600 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center transition-colors">
                     View all <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
             </div>

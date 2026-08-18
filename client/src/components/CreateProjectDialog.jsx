@@ -50,9 +50,9 @@ const CreateProjectDialog = ({ isDialogOpen, setIsDialogOpen }) => {
     if (!isDialogOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/20 dark:bg-black/60 backdrop-blur flex items-center justify-center text-left z-50">
-            <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 w-full max-w-lg text-zinc-900 dark:text-zinc-200 relative">
-                <button className="absolute top-3 right-3 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200" onClick={() => setIsDialogOpen(false)} >
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center text-left z-50 p-4">
+            <div className="bg-white dark:bg-zinc-900/90 dark:backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/90 rounded-2xl p-6 w-full max-w-lg text-zinc-900 dark:text-zinc-200 relative shadow-2xl">
+                <button className="absolute top-4 right-4 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer" onClick={() => setIsDialogOpen(false)} >
                     <XIcon className="size-5" />
                 </button>
 

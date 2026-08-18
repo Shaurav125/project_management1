@@ -34,9 +34,9 @@ const RecentActivity = () => {
     }, [currentWorkspace]);
 
     return (
-        <div className="bg-white dark:bg-zinc-950 dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg transition-all overflow-hidden">
-            <div className="border-b border-zinc-200 dark:border-zinc-800 p-4">
-                <h2 className="text-lg text-zinc-800 dark:text-zinc-200">Recent Activity</h2>
+        <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 rounded-xl transition-all duration-200 overflow-hidden shadow-xs">
+            <div className="border-b border-zinc-200 dark:border-zinc-800/80 p-4">
+                <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Recent Activity</h2>
             </div>
 
             <div className="p-0">

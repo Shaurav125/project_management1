@@ -21,14 +21,36 @@ const ProjectCalendar = ({ tasks }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
     const today = new Date();
-    const getTasksForDate = (date) => tasks.filter((task) => isSameDay(task.due_date, date));
+    const getTasksForDate = (date) =>
+        tasks.filter((task) => {
+            if (!task?.due_date) return false;
+            try {
+                return isSameDay(new Date(task.due_date), date);
+            } catch {
+                return false;
+            }
+        });
 
     const upcomingTasks = tasks
-        .filter((task) => task.due_date && !isBefore(task.due_date, today) && task.status !== "DONE")
+        .filter((task) => {
+            if (!task?.due_date || task.status === "DONE") return false;
+            try {
+                return !isBefore(new Date(task.due_date), today);
+            } catch {
+                return false;
+            }
+        })
         .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
         .slice(0, 5);
 
-    const overdueTasks = tasks.filter((task) => task.due_date && isBefore(task.due_date, today) && task.status !== "DONE");
+    const overdueTasks = tasks.filter((task) => {
+        if (!task?.due_date || task.status === "DONE") return false;
+        try {
+            return isBefore(new Date(task.due_date), today);
+        } catch {
+            return false;
+        }
+    });
 
     const daysInMonth = eachDayOfInterval({
         start: startOfMonth(currentMonth),

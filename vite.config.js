@@ -4,14 +4,15 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
+  root: 'client',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@clerk/clerk-react': path.resolve(__dirname, './src/lib/clerk-adapter.jsx'),
+      '@clerk/clerk-react': path.resolve(__dirname, './client/src/lib/clerk-adapter.jsx'),
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '../dist'),
+    outDir: path.resolve(__dirname, './dist'),
     emptyOutDir: true,
   },
   server: {

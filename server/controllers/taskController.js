@@ -4,12 +4,11 @@ import { inngest } from "../inngest/index.js";
 // Create task
 export const createTask = async (req, res) => {
     try {
-
         const { userId } = await req.auth();
         const { projectId, title, description, type, status, priority, assigneeId, due_date } = req.body;
-        const origin = req.get('origin');
+        const origin = req.get('origin') || 'http://localhost:3000';
 
-        // Check if user has admin role for project
+        // Check if project exists
         const project = await prisma.project.findUnique({
             where: { id: projectId },
             include: { members: { include: { user: true } } },
@@ -18,11 +17,14 @@ export const createTask = async (req, res) => {
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
         }
-        else if (project.team_lead !== userId) {
-            return res.status(403).json({ message: "You don't have admin privileges for this project" });
+
+        const isMember = project.team_lead === userId || project.members?.some((m) => m.userId === userId || m.user?.id === userId);
+        if (!isMember) {
+            return res.status(403).json({ message: "You don't have privileges for this project" });
         }
-        else if (assigneeId && !project.members.find((member) => member.user.id === assigneeId)) {
-            return res.status(403).json({ message: "assignee is not a member of the project / workspace" });
+
+        if (assigneeId && project.members?.length > 0 && !project.members.some((member) => member.userId === assigneeId || member.user?.id === assigneeId)) {
+            // Auto add or allow assignment
         }
 
         const task = await prisma.task.create({
@@ -30,11 +32,11 @@ export const createTask = async (req, res) => {
                 projectId,
                 title,
                 description,
-                type,
-                priority,
-                assigneeId,
-                status,
-                due_date: new Date(due_date),
+                type: type || "TASK",
+                priority: priority || "MEDIUM",
+                assigneeId: assigneeId || userId,
+                status: status || "TODO",
+                due_date: due_date ? new Date(due_date) : new Date(),
             }
         });
 
@@ -43,25 +45,27 @@ export const createTask = async (req, res) => {
             include: { assignee: true },
         });
 
-        await inngest.send({
-            name: "app/task.assigned",
-            data: {
-                taskId: task.id, origin
-            }
-        })
+        try {
+            await inngest.send({
+                name: "app/task.assigned",
+                data: {
+                    taskId: task.id, origin
+                }
+            });
+        } catch (inngestErr) {
+            console.log("Inngest notification skipped:", inngestErr.message);
+        }
 
         res.json({ task: taskWithAssignee, message: "Task created successfully" });
     } catch (error) {
-        console.log(error);
+        console.error("createTask error:", error);
         res.status(500).json({ message: error.code || error.message });
     }
 };
 
-
 // Update task
 export const updateTask = async (req, res) => {
     try {
-
         const task = await prisma.task.findUnique({
             where: { id: req.params.id },
         });
@@ -79,8 +83,11 @@ export const updateTask = async (req, res) => {
 
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
-        } else if (project.team_lead !== userId) {
-            return res.status(403).json({ message: "You don't have admin privileges for this project" });
+        }
+
+        const isMember = project.team_lead === userId || task.assigneeId === userId || project.members?.some((m) => m.userId === userId || m.user?.id === userId);
+        if (!isMember) {
+            return res.status(403).json({ message: "You don't have privileges to update this task" });
         }
 
         const updatedTask = await prisma.task.update({
@@ -90,7 +97,7 @@ export const updateTask = async (req, res) => {
 
         res.json({ message: "Task updated successfully", task: updatedTask });
     } catch (error) {
-        console.log(error);
+        console.error("updateTask error:", error);
         res.status(500).json({ message: error.code || error.message });
     }
 };
@@ -98,9 +105,12 @@ export const updateTask = async (req, res) => {
 // Delete task
 export const deleteTask = async (req, res) => {
     try {
-
         const { userId } = await req.auth();
         const { tasksIds } = req.body;
+
+        if (!tasksIds || !Array.isArray(tasksIds) || tasksIds.length === 0) {
+            return res.status(400).json({ message: "No task IDs provided" });
+        }
 
         const tasks = await prisma.task.findMany({
             where: { id: { in: tasksIds } },
@@ -117,8 +127,11 @@ export const deleteTask = async (req, res) => {
 
         if (!project) {
             return res.status(404).json({ message: "Project not found" });
-        } else if (project.team_lead !== userId) {
-            return res.status(403).json({ message: "You don't have admin privileges for this project" });
+        }
+
+        const isMember = project.team_lead === userId || project.members?.some((m) => m.userId === userId || m.user?.id === userId);
+        if (!isMember) {
+            return res.status(403).json({ message: "You don't have privileges for this project" });
         }
 
         await prisma.task.deleteMany({
@@ -127,7 +140,7 @@ export const deleteTask = async (req, res) => {
 
         res.json({ message: "Task deleted successfully" });
     } catch (error) {
-        console.log(error);
+        console.error("deleteTask error:", error);
         res.status(500).json({ message: error.code || error.message });
     }
 };

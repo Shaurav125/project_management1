@@ -61,13 +61,13 @@ function WorkspaceDropdown() {
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 w-64 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded shadow-lg top-full left-0">
+                <div className="absolute z-50 w-64 bg-white dark:bg-zinc-900/95 dark:backdrop-blur-md border border-gray-200 dark:border-zinc-700/80 rounded-xl shadow-xl top-full left-0 overflow-hidden">
                     <div className="p-2">
-                        <p className="text-xs text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2 px-2">
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2 px-2 font-medium">
                             Workspaces
                         </p>
                         {userMemberships.data.map(({ organization }) => (
-                            <div key={organization.id} onClick={() => onSelectWorkspace(organization.id)} className="flex items-center gap-3 p-2 cursor-pointer rounded hover:bg-gray-100 dark:hover:bg-zinc-800" >
+                            <div key={organization.id} onClick={() => onSelectWorkspace(organization.id)} className="flex items-center gap-3 p-2 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition" >
                                 <img src={organization.imageUrl} alt={organization.name} className="w-6 h-6 rounded" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
@@ -84,10 +84,10 @@ function WorkspaceDropdown() {
                         ))}
                     </div>
 
-                    <hr className="border-gray-200 dark:border-zinc-700" />
+                    <hr className="border-gray-200 dark:border-zinc-800" />
 
-                    <div onClick={() => { openCreateOrganization(); setIsOpen(false); }} className="p-2 cursor-pointer rounded group hover:bg-gray-100 dark:hover:bg-zinc-800" >
-                        <p className="flex items-center text-xs gap-2 my-1 w-full text-blue-600 dark:text-blue-400 group-hover:text-blue-500 dark:group-hover:text-blue-300">
+                    <div onClick={() => { openCreateOrganization(); setIsOpen(false); }} className="p-2 cursor-pointer rounded-lg group hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition" >
+                        <p className="flex items-center text-xs gap-2 my-1 w-full text-blue-600 dark:text-blue-400 group-hover:text-blue-500 dark:group-hover:text-blue-300 font-medium">
                             <Plus className="w-4 h-4" /> Create Workspace
                         </p>
                     </div>

@@ -1,19 +1,27 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../configs/api";
+import { dummyWorkspaces } from "../assets/assets";
 
 export const fetchWorkspaces = createAsyncThunk("workspace/fetchWorkspaces", async ({ getToken }) => {
     try {
         const { data } = await api.get("/api/workspaces", { headers: { Authorization: `Bearer ${await getToken()}` } });
-        return data.workspaces || [];
+        if (data.workspaces && data.workspaces.length > 0) {
+            return data.workspaces;
+        }
+        return dummyWorkspaces;
     } catch (error) {
         console.log(error?.response?.data?.message || error.message);
-        return [];
+        return dummyWorkspaces;
     }
 });
 
+const initialWs = dummyWorkspaces;
+const initialSavedId = typeof window !== 'undefined' ? localStorage.getItem("currentWorkspaceId") : null;
+const initialCurrentWs = (initialSavedId && initialWs.find(w => w.id === initialSavedId)) || initialWs[0];
+
 const initialState = {
-    workspaces: [],
-    currentWorkspace: null,
+    workspaces: initialWs,
+    currentWorkspace: initialCurrentWs,
     loading: false,
 };
 

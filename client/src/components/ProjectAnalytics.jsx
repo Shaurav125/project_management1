@@ -90,14 +90,14 @@ const ProjectAnalytics = ({ project, tasks }) => {
                 {metrics.map((m, i) => (
                     <div
                         key={i}
-                        className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6"
+                        className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all"
                     >
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-zinc-600 dark:text-zinc-400 text-sm">{m.label}</p>
-                                <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
+                                <p className="text-zinc-600 dark:text-zinc-400 text-sm font-medium">{m.label}</p>
+                                <p className={`text-xl font-bold mt-1 ${m.color}`}>{m.value}</p>
                             </div>
-                            <div className={`p-2 rounded-md ${m.bg}`}>{m.icon}</div>
+                            <div className={`p-2.5 rounded-xl ${m.bg}`}>{m.icon}</div>
                         </div>
                     </div>
                 ))}
@@ -106,25 +106,24 @@ const ProjectAnalytics = ({ project, tasks }) => {
             {/* Charts */}
             <div className="grid lg:grid-cols-2 gap-6">
                 {/* Tasks by Status */}
-                <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
-                    <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Status</h2>
+                <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs">
+                    <h2 className="text-zinc-900 dark:text-white mb-4 font-semibold">Tasks by Status</h2>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={statusData}>
                             <XAxis
                                 dataKey="name"
-                                tick={{ fill: "#52525b", fontSize: 12 }}
-                                axisLine={{ stroke: "#d4d4d8" }}
-                                dark={{ stroke: "#27272a" }}
+                                tick={{ fill: "#71717a", fontSize: 12 }}
+                                axisLine={{ stroke: "#3f3f46" }}
                             />
-                            <YAxis tick={{ fill: "#52525b", fontSize: 12 }} axisLine={{ stroke: "#d4d4d8" }} />
-                            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            <YAxis tick={{ fill: "#71717a", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} />
+                            <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
 
                 {/* Tasks by Type */}
-                <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
-                    <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Type</h2>
+                <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs">
+                    <h2 className="text-zinc-900 dark:text-white mb-4 font-semibold">Tasks by Type</h2>
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                             <Pie
@@ -146,8 +145,8 @@ const ProjectAnalytics = ({ project, tasks }) => {
             </div>
 
             {/* Priority Breakdown */}
-            <div className="not-dark:bg-white dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-300 dark:border-zinc-800 rounded-lg p-6">
-                <h2 className="text-zinc-900 dark:text-white mb-4 font-medium">Tasks by Priority</h2>
+            <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs">
+                <h2 className="text-zinc-900 dark:text-white mb-4 font-semibold">Tasks by Priority</h2>
                 <div className="space-y-4">
                     {priorityData.map((p) => (
                         <div key={p.name} className="space-y-2">

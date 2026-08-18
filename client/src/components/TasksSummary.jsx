@@ -17,7 +17,7 @@ export default function TasksSummary() {
         }
     }, [currentWorkspace]);
 
-    const myTasks = tasks.filter(i => i.assigneeId === user.id);
+    const myTasks = tasks.filter(i => i.assigneeId === (user?.id || 'user_1'));
     const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'DONE');
     const inProgressIssues = tasks.filter(i => i.status === 'IN_PROGRESS');
 
@@ -48,10 +48,10 @@ export default function TasksSummary() {
     return (
         <div className="space-y-6">
             {summaryCards.map((card) => (
-                <div key={card.title} className="bg-white dark:bg-zinc-950 dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 rounded-lg overflow-hidden">
-                    <div className="border-b border-zinc-200 dark:border-zinc-800 p-4 pb-3">
+                <div key={card.title} className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 rounded-xl overflow-hidden shadow-xs">
+                    <div className="border-b border-zinc-200 dark:border-zinc-800/80 p-4 pb-3">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800/80 dark:backdrop-blur-xs rounded-lg">
                                 <card.icon className="w-4 h-4 text-gray-500 dark:text-zinc-400" />
                             </div>
                             <div className="flex items-center justify-between flex-1">
@@ -70,7 +70,7 @@ export default function TasksSummary() {
                         ) : (
                             <div className="space-y-3">
                                 {card.items.map((issue) => (
-                                    <div key={issue.id} className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
+                                    <div key={issue.id} className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 border border-transparent dark:border-zinc-800/40 transition-colors cursor-pointer">
                                         <h4 className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                             {issue.title}
                                         </h4>
@@ -80,7 +80,7 @@ export default function TasksSummary() {
                                     </div>
                                 ))}
                                 {card.count > 3 && (
-                                    <button className="flex items-center justify-center w-full text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white mt-2">
+                                    <button className="flex items-center justify-center w-full text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white mt-2 cursor-pointer transition-colors">
                                         View {card.count - 3} more <ArrowRight className="w-3 h-3 ml-2" />
                                     </button>
                                 )}

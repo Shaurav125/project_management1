@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { CreateOrganization, SignIn, useAuth, useUser } from '@clerk/clerk-react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchWorkspaces } from '../features/workspaceSlice'
 import { loadTheme } from '../features/themeSlice'
 import { Loader2Icon } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -14,6 +15,7 @@ const Layout = () => {
     const { workspaces, loading } = useSelector((state) => state.workspace)
     const { getToken } = useAuth()
     const dispatch = useDispatch()
+    const location = useLocation()
 
     // Initial load of theme
     useEffect(() => {
@@ -50,12 +52,23 @@ const Layout = () => {
     }
 
     return (
-        <div className="flex bg-white dark:bg-zinc-950 text-gray-900 dark:text-slate-100">
+        <div className="flex bg-white dark:bg-zinc-950 dark:bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.12),rgba(0,0,0,0))] text-gray-900 dark:text-slate-100 min-h-screen">
             <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-            <div className="flex-1 flex flex-col h-screen">
+            <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-                <div className="flex-1 h-full p-6 xl:p-10 xl:px-16 overflow-y-scroll">
-                    <Outlet />
+                <div className="flex-1 h-full p-6 xl:p-10 xl:px-16 overflow-y-auto">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={location.pathname}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                            className="w-full"
+                        >
+                            <Outlet />
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
             </div>
         </div>

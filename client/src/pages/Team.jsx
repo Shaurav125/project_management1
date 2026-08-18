@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { UsersIcon, Search, UserPlus, Mail, Shield, Activity } from "lucide-react";
 import InviteMemberDialog from "../components/InviteMemberDialog";
 import { useSelector } from "react-redux";
+import { motion } from "motion/react";
 
 const Team = () => {
 
@@ -26,23 +27,34 @@ const Team = () => {
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6"
+            >
                 <div>
                     <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-1">Team</h1>
                     <p className="text-gray-500 dark:text-zinc-400 text-sm">
                         Manage team members and their contributions
                     </p>
                 </div>
-                <button onClick={() => setIsDialogOpen(true)} className="flex items-center px-5 py-2 rounded text-sm bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white transition" >
+                <button onClick={() => setIsDialogOpen(true)} className="flex items-center px-5 py-2 rounded text-sm bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white transition shadow-xs cursor-pointer" >
                     <UserPlus className="w-4 h-4 mr-2" /> Invite Member
                 </button>
                 <InviteMemberDialog isDialogOpen={isDialogOpen} setIsDialogOpen={setIsDialogOpen} />
-            </div>
+            </motion.div>
 
             {/* Stats Cards */}
             <div className="flex flex-wrap gap-4">
                 {/* Total Members */}
-                <div className="max-sm:w-full dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-gray-300 dark:border-zinc-800 rounded-lg p-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: 0.05 }}
+                    whileHover={{ y: -2 }}
+                    className="max-sm:w-full bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-gray-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs"
+                >
                     <div className="flex items-center justify-between gap-8 md:gap-22">
                         <div>
                             <p className="text-sm text-gray-500 dark:text-zinc-400">Total Members</p>
@@ -52,10 +64,16 @@ const Team = () => {
                             <UsersIcon className="size-4 text-blue-500 dark:text-blue-200" />
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Active Projects */}
-                <div className="max-sm:w-full dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-gray-300 dark:border-zinc-800 rounded-lg p-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
+                    whileHover={{ y: -2 }}
+                    className="max-sm:w-full bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-gray-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs"
+                >
                     <div className="flex items-center justify-between gap-8 md:gap-22">
                         <div>
                             <p className="text-sm text-gray-500 dark:text-zinc-400">Active Projects</p>
@@ -67,10 +85,16 @@ const Team = () => {
                             <Activity className="size-4 text-emerald-500 dark:text-emerald-200" />
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Total Tasks */}
-                <div className="max-sm:w-full dark:bg-gradient-to-br dark:from-zinc-800/70 dark:to-zinc-900/50 border border-gray-300 dark:border-zinc-800 rounded-lg p-6">
+                <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: 0.15 }}
+                    whileHover={{ y: -2 }}
+                    className="max-sm:w-full bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-gray-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-xs"
+                >
                     <div className="flex items-center justify-between gap-8 md:gap-22">
                         <div>
                             <p className="text-sm text-gray-500 dark:text-zinc-400">Total Tasks</p>
@@ -80,13 +104,13 @@ const Team = () => {
                             <Shield className="size-4 text-purple-500 dark:text-purple-200" />
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             {/* Search */}
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-zinc-400 size-3" />
-                <input placeholder="Search team members..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 w-full text-sm rounded-md border border-gray-300 dark:border-zinc-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-400 py-2 focus:outline-none focus:border-blue-500" />
+                <input placeholder="Search team members..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-8 w-full text-sm rounded-lg border border-gray-300 dark:border-zinc-700/80 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-400 py-2 focus:outline-none focus:border-blue-500 bg-white dark:bg-zinc-900/60 dark:backdrop-blur-sm transition" />
             </div>
 
             {/* Team Members */}
@@ -110,9 +134,9 @@ const Team = () => {
                 ) : (
                     <div className="max-w-4xl w-full">
                         {/* Desktop Table */}
-                        <div className="hidden sm:block overflow-x-auto rounded-md border border-gray-200 dark:border-zinc-800">
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                                <thead className="bg-gray-50 dark:bg-zinc-900/50">
+                        <div className="hidden sm:block overflow-x-auto rounded-xl border border-gray-200 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md shadow-xs">
+                            <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800/80">
+                                <thead className="bg-gray-50/50 dark:bg-zinc-900/60">
                                     <tr>
                                         <th className="px-6 py-2.5 text-left font-medium text-sm">
                                             Name
@@ -125,11 +149,14 @@ const Team = () => {
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-800">
-                                    {filteredUsers.map((user) => (
-                                        <tr
+                                <tbody className="divide-y divide-gray-200 dark:divide-zinc-800/80">
+                                    {filteredUsers.map((user, idx) => (
+                                        <motion.tr
                                             key={user.id}
-                                            className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+                                            initial={{ opacity: 0, x: -6 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ duration: 0.15, delay: idx * 0.03 }}
+                                            className="hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors"
                                         >
                                             <td className="px-6 py-2.5 whitespace-nowrap flex items-center gap-3">
                                                 <img
@@ -154,7 +181,7 @@ const Team = () => {
                                                     {user.role || "User"}
                                                 </span>
                                             </td>
-                                        </tr>
+                                        </motion.tr>
                                     ))}
                                 </tbody>
                             </table>
@@ -162,10 +189,13 @@ const Team = () => {
 
                         {/* Mobile Cards */}
                         <div className="sm:hidden space-y-3">
-                            {filteredUsers.map((user) => (
-                                <div
+                            {filteredUsers.map((user, idx) => (
+                                <motion.div
                                     key={user.id}
-                                    className="p-4 border border-gray-200 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-900"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.15, delay: idx * 0.04 }}
+                                    className="p-4 border border-gray-200 dark:border-zinc-800/80 rounded-xl bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md shadow-xs"
                                 >
                                     <div className="flex items-center gap-3 mb-2">
                                         <img
@@ -192,7 +222,7 @@ const Team = () => {
                                             {user.role || "User"}
                                         </span>
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     </div>

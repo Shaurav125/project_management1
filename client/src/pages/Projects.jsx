@@ -67,13 +67,13 @@ export default function Projects() {
                         placeholder="Search projects..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 text-sm pr-4 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-400 focus:border-blue-500 outline-none"
+                        className="w-full pl-10 text-sm pr-4 py-2 rounded-lg border border-gray-300 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/60 dark:backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-zinc-400 focus:border-blue-500 outline-none transition"
                     />
                 </div>
                 <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white text-sm"
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/60 dark:backdrop-blur-sm text-gray-900 dark:text-white text-sm outline-none transition"
                 >
                     <option value="ALL">All Status</option>
                     <option value="ACTIVE">Active</option>
@@ -85,7 +85,7 @@ export default function Projects() {
                 <select
                     value={filters.priority}
                     onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-white text-sm"
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700/80 bg-white dark:bg-zinc-900/60 dark:backdrop-blur-sm text-gray-900 dark:text-white text-sm outline-none transition"
                 >
                     <option value="ALL">All Priority</option>
                     <option value="HIGH">High</option>
@@ -113,8 +113,8 @@ export default function Projects() {
                         </button>
                     </div>
                 ) : (
-                    filteredProjects.map((project) => (
-                        <ProjectCard key={project.id} project={project} />
+                    filteredProjects.map((project, idx) => (
+                        <ProjectCard key={project.id} project={project} index={idx} />
                     ))
                 )}
             </div>
