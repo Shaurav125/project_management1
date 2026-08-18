@@ -1,0 +1,147 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum WorkspaceRole {
+    ADMIN
+    MEMBER
+}
+
+enum TaskStatus {
+    TODO
+    IN_PROGRESS
+    DONE
+}
+
+enum TaskType {
+    TASK
+    BUG
+    FEATURE
+    IMPROVEMENT
+    OTHER
+}
+
+enum ProjectStatus {
+    ACTIVE
+    PLANNING
+    COMPLETED
+    ON_HOLD
+    CANCELLED
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+model User {
+    id        String   @id
+    name      String
+    email     String   @unique
+    image     String   @default("")
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    workspaces      WorkspaceMember[]
+    projects        Project[]         @relation("ProjectOwner")
+    tasks           Task[]            @relation("TaskAssignee")
+    comments        Comment[]
+    ownedWorkspaces Workspace[]
+    ProjectMember   ProjectMember[]
+}
+
+model Workspace {
+    id          String   @id
+    name        String
+    slug        String   @unique
+    description String?
+    image_url   String?
+    ownerId     String
+    owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    members  WorkspaceMember[]
+    projects Project[]
+}
+
+model WorkspaceMember {
+    id          String        @id @default(uuid())
+    userId      String
+    workspaceId String
+    role        WorkspaceRole @default(MEMBER)
+    message     String?
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+
+    @@unique([userId, workspaceId])
+}
+
+model Project {
+    id          String        @id @default(uuid())
+    name        String
+    description String?
+    status      ProjectStatus @default(PLANNING)
+    priority    Priority      @default(MEDIUM)
+    progress    Int           @default(0)
+    start_date  DateTime?
+    end_date    DateTime?
+    team_lead   String
+    workspaceId String
+    owner       User          @relation("ProjectOwner", fields: [team_lead], references: [id], onDelete: Cascade)
+    workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @updatedAt
+
+    members ProjectMember[]
+    tasks   Task[]
+}
+
+model ProjectMember {
+    id        String   @id @default(uuid())
+    userId    String
+    projectId String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, projectId])
+}
+
+model Task {
+    id          String     @id @default(uuid())
+    title       String
+    description String?
+    status      TaskStatus @default(TODO)
+    type        TaskType   @default(TASK)
+    priority    Priority   @default(MEDIUM)
+    due_date    DateTime?
+    assigneeId  String
+    projectId   String
+    assignee    User       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+    project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+
+    comments Comment[]
+}
+
+model Comment {
+    id        String   @id @default(uuid())
+    content   String
+    userId    String
+    taskId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
