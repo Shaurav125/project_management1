@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 import { Outlet, useLocation } from 'react-router-dom'
-import { CreateOrganization, SignIn, useAuth, useUser } from '@clerk/clerk-react'
+import { useAppAuth, useAppUser, AppSignIn, AppCreateOrganization } from '../context/AppAuth'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchWorkspaces } from '../features/workspaceSlice'
 import { loadTheme } from '../features/themeSlice'
@@ -11,9 +11,9 @@ import { motion, AnimatePresence } from 'motion/react'
 
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-    const { user, isLoaded } = useUser()
+    const { user, isLoaded } = useAppUser()
     const { workspaces, loading } = useSelector((state) => state.workspace)
-    const { getToken } = useAuth()
+    const { getToken } = useAppAuth()
     const dispatch = useDispatch()
     const location = useLocation()
 
@@ -29,10 +29,18 @@ const Layout = () => {
         }
     }, [user, isLoaded])
 
+    if (!isLoaded) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-white dark:bg-zinc-950">
+                <Loader2Icon className="size-7 text-blue-500 animate-spin" />
+            </div>
+        )
+    }
+
     if (!user) {
         return (
-            <div className="flex justify-center items-center h-screen bg-white dark:bg-zinc-950">
-                <SignIn />
+            <div className="min-h-screen flex justify-center items-center bg-zinc-100 dark:bg-zinc-950 p-4">
+                <AppSignIn routing="hash" />
             </div>
         )
     }
@@ -45,8 +53,8 @@ const Layout = () => {
 
     if (user && workspaces.length === 0) {
         return (
-            <div className="min-h-screen flex justify-center items-center">
-                <CreateOrganization />
+            <div className="min-h-screen flex justify-center items-center bg-zinc-100 dark:bg-zinc-950 p-4">
+                <AppCreateOrganization routing="hash" />
             </div>
         )
     }

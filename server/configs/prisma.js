@@ -388,6 +388,15 @@ const mockPrisma = {
             store.workspaceMembers.push(newWm);
             return { ...newWm };
         },
+        deleteMany: async ({ where }) => {
+            const initialLen = store.workspaceMembers.length;
+            if (where?.workspaceId && where?.userId) {
+                store.workspaceMembers = store.workspaceMembers.filter(
+                    wm => !(wm.workspaceId === where.workspaceId && wm.userId === where.userId)
+                );
+            }
+            return { count: initialLen - store.workspaceMembers.length };
+        },
     },
 
     project: {
@@ -452,6 +461,17 @@ const mockPrisma = {
             }
             return { count: added.length };
         },
+        deleteMany: async ({ where }) => {
+            const initialLen = store.projectMembers.length;
+            if (where?.projectId && where?.userId) {
+                store.projectMembers = store.projectMembers.filter(
+                    pm => !(pm.projectId === where.projectId && pm.userId === where.userId)
+                );
+            } else if (where?.projectId) {
+                store.projectMembers = store.projectMembers.filter(pm => pm.projectId !== where.projectId);
+            }
+            return { count: initialLen - store.projectMembers.length };
+        },
     },
 
     task: {
@@ -498,10 +518,18 @@ const mockPrisma = {
             let initialLen = store.tasks.length;
             if (where?.id?.in) {
                 store.tasks = store.tasks.filter(t => !where.id.in.includes(t.id));
+            } else if (where?.id) {
+                store.tasks = store.tasks.filter(t => t.id !== where.id);
             } else if (where?.projectId) {
                 store.tasks = store.tasks.filter(t => t.projectId !== where.projectId);
             }
             return { count: initialLen - store.tasks.length };
+        },
+        delete: async ({ where }) => {
+            const idx = store.tasks.findIndex(t => t.id === where.id);
+            if (idx === -1) return null;
+            const deleted = store.tasks.splice(idx, 1)[0];
+            return enrichTask(deleted);
         },
     },
 
@@ -525,5 +553,110 @@ const mockPrisma = {
     },
 };
 
-const prisma = mockPrisma;
+let prismaInstance = mockPrisma;
+let databaseEngine = "in-memory-seed";
+let dbConnectionError = null;
+
+async function initDatabase() {
+    const dbUrl = process.env.DATABASE_URL || process.env.DIRECT_URL;
+    if (!dbUrl || (!dbUrl.startsWith("postgres://") && !dbUrl.startsWith("postgresql://"))) {
+        console.log("[Database] Running with In-Memory Seed Store (DATABASE_URL not set or not postgres).");
+        return;
+    }
+
+    try {
+        console.log("[Database] Attempting connection to Neon/PostgreSQL database...");
+        
+        // Try Neon Serverless Adapter first if Neon URL
+        if (dbUrl.includes("neon.tech") || dbUrl.includes("neon")) {
+            try {
+                const { Pool, neonConfig } = await import("@neondatabase/serverless");
+                const { PrismaNeon } = await import("@prisma/adapter-neon");
+                const { PrismaClient } = await import("@prisma/client");
+                const ws = (await import("ws")).default;
+
+                neonConfig.webSocketConstructor = ws;
+                const pool = new Pool({ connectionString: dbUrl });
+                const adapter = new PrismaNeon(pool);
+                const client = new PrismaClient({ adapter });
+
+                // Verify with a test query
+                await client.$queryRaw`SELECT 1 as connected`;
+                prismaInstance = client;
+                databaseEngine = "neon-serverless-prisma";
+                dbConnectionError = null;
+                console.log("[Database] Successfully connected to Neon Database via Prisma Neon Adapter!");
+                return;
+            } catch (neonErr) {
+                console.warn("[Database] Neon adapter connection warning, attempting standard PrismaClient:", neonErr.message);
+            }
+        }
+
+        // Fallback to standard PrismaClient
+        const { PrismaClient } = await import("@prisma/client");
+        const client = new PrismaClient();
+        await client.$queryRaw`SELECT 1 as connected`;
+        prismaInstance = client;
+        databaseEngine = "postgresql-prisma";
+        dbConnectionError = null;
+        console.log("[Database] Successfully connected to PostgreSQL via PrismaClient!");
+    } catch (err) {
+        dbConnectionError = err.message;
+        console.warn("[Database] Failed to connect to remote database. Falling back smoothly to In-Memory Seed Store:", err.message);
+        prismaInstance = mockPrisma;
+        databaseEngine = "in-memory-seed";
+    }
+}
+
+// Kick off async DB initialization (non-blocking)
+initDatabase().catch((err) => {
+    console.warn("DB startup background notice:", err.message);
+});
+
+export async function checkDatabaseHealth() {
+    try {
+        if (databaseEngine === "neon-serverless-prisma" || databaseEngine === "postgresql-prisma") {
+            const start = Date.now();
+            await prismaInstance.$queryRaw`SELECT 1 as connected`;
+            const latencyMs = Date.now() - start;
+            return {
+                status: "connected",
+                engine: databaseEngine === "neon-serverless-prisma" ? "Neon Serverless Database (PostgreSQL)" : "PostgreSQL (Prisma)",
+                urlConfigured: true,
+                latencyMs,
+                healthy: true,
+            };
+        }
+        return {
+            status: "active (development / seed mode)",
+            engine: "In-Memory Seed Database (Fast Development)",
+            urlConfigured: Boolean(process.env.DATABASE_URL),
+            error: dbConnectionError,
+            healthy: true,
+            counts: {
+                users: store.users.length,
+                workspaces: store.workspaces.length,
+                projects: store.projects.length,
+                tasks: store.tasks.length,
+                comments: store.comments.length,
+            },
+        };
+    } catch (err) {
+        return {
+            status: "degraded",
+            engine: databaseEngine,
+            healthy: false,
+            error: err.message,
+        };
+    }
+}
+
+// Proxy getter so prisma is always dynamically resolved to the active instance
+const prisma = new Proxy({}, {
+    get(target, prop) {
+        return prismaInstance[prop];
+    }
+});
+
 export default prisma;
+

@@ -3,7 +3,7 @@ import { ChevronDown, Check, Plus } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { setCurrentWorkspace } from "../features/workspaceSlice";
 import { useNavigate } from "react-router-dom";
-import { useClerk, useOrganizationList } from "@clerk/clerk-react";
+import { useClerk, useOrganizationList } from "../context/AppAuth";
 
 function WorkspaceDropdown() {
 
@@ -19,12 +19,45 @@ function WorkspaceDropdown() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    const onSelectWorkspace = (organizationId) => {
-        setActive({organization:organizationId});
-        dispatch(setCurrentWorkspace(organizationId))
+    const handleCreateWorkspace = () => {
         setIsOpen(false);
-        navigate('/')
-    }
+        if (openCreateOrganization) {
+            try {
+                openCreateOrganization();
+                return;
+            } catch (e) {
+                // fallback to navigate
+            }
+        }
+        navigate('/create-organization');
+    };
+
+    const orgList = (userMemberships?.data && userMemberships.data.length > 0)
+        ? userMemberships.data.map(({ organization }) => ({
+            id: organization.id,
+            name: organization.name,
+            imageUrl: organization.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80',
+            membersCount: organization.membersCount || 1,
+        }))
+        : workspaces.map((ws) => ({
+            id: ws.id,
+            name: ws.name,
+            imageUrl: ws.image_url || ws.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80',
+            membersCount: ws.members?.length || 1,
+        }));
+
+    const onSelectWorkspace = (organizationId) => {
+        if (setActive) {
+            try {
+                setActive({ organization: organizationId });
+            } catch (e) {
+                // ignore
+            }
+        }
+        dispatch(setCurrentWorkspace(organizationId));
+        setIsOpen(false);
+        navigate('/');
+    };
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -66,9 +99,9 @@ function WorkspaceDropdown() {
                         <p className="text-xs text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-2 px-2 font-medium">
                             Workspaces
                         </p>
-                        {userMemberships.data.map(({ organization }) => (
+                        {orgList.map((organization) => (
                             <div key={organization.id} onClick={() => onSelectWorkspace(organization.id)} className="flex items-center gap-3 p-2 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition" >
-                                <img src={organization.imageUrl} alt={organization.name} className="w-6 h-6 rounded" />
+                                <img src={organization.imageUrl} alt={organization.name} className="w-6 h-6 rounded object-cover" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                         {organization.name}
@@ -86,7 +119,7 @@ function WorkspaceDropdown() {
 
                     <hr className="border-gray-200 dark:border-zinc-800" />
 
-                    <div onClick={() => { openCreateOrganization(); setIsOpen(false); }} className="p-2 cursor-pointer rounded-lg group hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition" >
+                    <div onClick={handleCreateWorkspace} className="p-2 cursor-pointer rounded-lg group hover:bg-gray-100 dark:hover:bg-zinc-800/70 transition" >
                         <p className="flex items-center text-xs gap-2 my-1 w-full text-blue-600 dark:text-blue-400 group-hover:text-blue-500 dark:group-hover:text-blue-300 font-medium">
                             <Plus className="w-4 h-4" /> Create Workspace
                         </p>

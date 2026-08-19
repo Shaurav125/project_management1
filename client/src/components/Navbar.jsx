@@ -43,7 +43,7 @@ const Navbar = ({ setIsSidebarOpen }) => {
                     </button>
 
                     {/* User Button */}
-                    <UserButton />
+                    <UserButton afterSignOutUrl="/sign-in" />
                 </div>
             </div>
         </div>
@@ -51,3 +51,4 @@ const Navbar = ({ setIsSidebarOpen }) => {
 }
 
 export default Navbar
+

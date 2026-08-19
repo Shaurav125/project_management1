@@ -7,12 +7,37 @@ import Team from './pages/Team'
 import ProjectDetails from './pages/ProjectDetails'
 import TaskDetails from './pages/TaskDetails'
 import Settings from './pages/Settings'
+import { SignIn, SignUp, CreateOrganization } from '@clerk/clerk-react'
 
 const App = () => {
     return (
         <>
             <Toaster />
             <Routes>
+                <Route
+                    path="/sign-in/*"
+                    element={
+                        <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
+                            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+                        </div>
+                    }
+                />
+                <Route
+                    path="/sign-up/*"
+                    element={
+                        <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
+                            <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />
+                        </div>
+                    }
+                />
+                <Route
+                    path="/create-organization/*"
+                    element={
+                        <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
+                            <CreateOrganization routing="path" path="/create-organization" afterCreateOrganizationUrl="/" />
+                        </div>
+                    }
+                />
                 <Route path="/" element={<Layout />}>
                     <Route index element={<Dashboard />} />
                     <Route path="team" element={<Team />} />

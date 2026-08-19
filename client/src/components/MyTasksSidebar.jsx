@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CheckSquareIcon, ChevronDownIcon, ChevronRightIcon } from 'lucide-react';
 import { useSelector } from 'react-redux';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '../context/AppAuth';
 import { Link } from 'react-router-dom';
 
 function MyTasksSidebar() {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeftIcon, PlusIcon, SettingsIcon, BarChart3Icon, CalendarIcon, FileStackIcon, ZapIcon } from "lucide-react";
@@ -18,22 +18,20 @@ export default function ProjectDetail() {
     const navigate = useNavigate();
     const projects = useSelector((state) => state?.workspace?.currentWorkspace?.projects || []);
 
-    const [project, setProject] = useState(null);
-    const [tasks, setTasks] = useState([]);
+    const project = useMemo(() => {
+        return projects.find((p) => p.id === id) || null;
+    }, [projects, id]);
+
+    const tasks = useMemo(() => {
+        return project?.tasks || [];
+    }, [project]);
+
     const [showCreateTask, setShowCreateTask] = useState(false);
     const [activeTab, setActiveTab] = useState(tab || "tasks");
 
     useEffect(() => {
         if (tab) setActiveTab(tab);
     }, [tab]);
-
-    useEffect(() => {
-        if (projects && projects.length > 0) {
-            const proj = projects.find((p) => p.id === id);
-            setProject(proj);
-            setTasks(proj?.tasks || []);
-        }
-    }, [id, projects]);
 
     const statusColors = {
         PLANNING: "bg-zinc-200 text-zinc-900 dark:bg-zinc-600 dark:text-zinc-200",
@@ -111,6 +109,43 @@ export default function ProjectDetail() {
                         <ZapIcon className={`size-4 ${card.color}`} />
                     </motion.div>
                 ))}
+            </div>
+
+            {/* Project Lead & Team Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-white dark:bg-zinc-900/70 border border-zinc-200 dark:border-zinc-800 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        Project Lead:
+                    </span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs font-semibold text-amber-900 dark:text-amber-300">
+                        <span>👑</span>
+                        <span>
+                            {project.team_lead
+                                ? project.members?.find((m) => m.userId === project.team_lead || m.user?.id === project.team_lead || m.user?.email === project.team_lead)?.user?.name || project.team_lead
+                                : "Unassigned"}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Team:</span>
+                    <div className="flex -space-x-1.5 overflow-hidden">
+                        {(project.members || []).slice(0, 5).map((m, idx) => (
+                            <img
+                                key={m.id || idx}
+                                src={m.user?.image || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&seed=${encodeURIComponent(m.user?.email || idx)}`}
+                                alt={m.user?.name || "Member"}
+                                title={`${m.user?.name || "Member"} (${m.user?.email || ""})`}
+                                className="inline-block h-6 w-6 rounded-full ring-2 ring-white dark:ring-zinc-900 object-cover"
+                            />
+                        ))}
+                    </div>
+                    {(project.members || []).length > 5 && (
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                            +{project.members.length - 5}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Tabs */}

@@ -12,6 +12,7 @@ import { protect } from './middlewares/authMiddleware.js';
 import { clerkMiddleware } from '@clerk/express';
 import { inngest, functions } from './inngest/index.js';
 import { serve } from "inngest/express";
+import { checkDatabaseHealth } from './configs/prisma.js';
 
 import fs from 'fs';
 
@@ -34,10 +35,67 @@ if (process.env.CLERK_SECRET_KEY && !process.env.CLERK_SECRET_KEY.includes('plac
     }
 }
 
-// Health Check
+// Health Check & Database Status
 app.get('/api/health', (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+
+app.get('/api/db-status', async (req, res) => {
+    const dbStatus = await checkDatabaseHealth();
+    res.json(dbStatus);
+});
+
+// Comprehensive API & Integration Status Endpoint
+app.get('/api/system-status', async (req, res) => {
+    const dbStatus = await checkDatabaseHealth();
+
+    const clerkPublishable = process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '';
+    const clerkSecret = process.env.CLERK_SECRET_KEY || '';
+    const isClerkLive = Boolean(clerkPublishable && !clerkPublishable.includes('placeholder') && (clerkPublishable.startsWith('pk_test_') || clerkPublishable.startsWith('pk_live_')));
+
+    const inngestConfigured = Boolean(process.env.INNGEST_EVENT_KEY && !process.env.INNGEST_EVENT_KEY.includes('placeholder'));
+    const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS && !process.env.SMTP_USER.includes('placeholder'));
+
+    res.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        integrations: {
+            clerk: {
+                name: "Clerk Authentication",
+                status: isClerkLive ? "configured (live mode)" : "ready (development fallback active)",
+                publishableKeyConfigured: Boolean(clerkPublishable),
+                secretKeyConfigured: Boolean(clerkSecret),
+                activeMode: isClerkLive ? "Production / Live Clerk" : "Local / Demo Auth Context",
+            },
+            database: {
+                name: "Neon Database / PostgreSQL",
+                ...dbStatus,
+            },
+            inngest: {
+                name: "Inngest Event Orchestration",
+                status: inngestConfigured ? "configured" : "ready (local events)",
+                eventKeyConfigured: inngestConfigured,
+                registeredFunctions: functions.length,
+            },
+            smtp: {
+                name: "Nodemailer (Email Service)",
+                status: smtpConfigured ? "configured" : "ready (simulated email logs)",
+                senderEmail: process.env.SENDER_EMAIL || "notifications@workspace.local",
+                configured: smtpConfigured,
+            },
+        },
+        endpoints: {
+            health: "/api/health",
+            workspaces: "/api/workspaces",
+            projects: "/api/projects",
+            tasks: "/api/tasks",
+            comments: "/api/comments",
+            inngest: "/api/inngest",
+        }
+    });
+});
+
 
 // Webhooks
 app.use("/api/inngest", serve({ client: inngest, functions }));

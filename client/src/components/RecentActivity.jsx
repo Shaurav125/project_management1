@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { GitCommit, MessageSquare, Clock, Bug, Zap, Square } from "lucide-react";
 import { format } from "date-fns";
 import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 
 const typeIcons = {
     BUG: { icon: Bug, color: "text-red-500 dark:text-red-400" },
@@ -18,19 +19,14 @@ const statusColors = {
 };
 
 const RecentActivity = () => {
-    const [tasks, setTasks] = useState([]);
     const { currentWorkspace } = useSelector((state) => state.workspace);
 
-    const getTasksFromCurrentWorkspace = () => {
-
-        if (!currentWorkspace) return;
-
-        const tasks = currentWorkspace.projects.flatMap((project) => project.tasks.map((task) => task));
-        setTasks(tasks);
-    };
-
-    useEffect(() => {
-        getTasksFromCurrentWorkspace();
+    const tasks = useMemo(() => {
+        if (!currentWorkspace?.projects) return [];
+        return currentWorkspace.projects
+            .flatMap((project) => (project.tasks || []).map(t => ({ ...t, projectId: project.id })))
+            .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
+            .slice(0, 6);
     }, [currentWorkspace]);
 
     return (
@@ -52,39 +48,44 @@ const RecentActivity = () => {
                         {tasks.map((task) => {
                             const TypeIcon = typeIcons[task.type]?.icon || Square;
                             const iconColor = typeIcons[task.type]?.color || "text-gray-500 dark:text-gray-400";
+                            const taskDate = task.updatedAt || task.createdAt;
 
                             return (
-                                <div key={task.id} className="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+                                <Link
+                                    key={task.id}
+                                    to={`/taskDetails?projectId=${task.projectId}&taskId=${task.id}`}
+                                    className="block p-5 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
+                                >
                                     <div className="flex items-start gap-4">
-                                        <div className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
+                                        <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                                             <TypeIcon className={`w-4 h-4 ${iconColor}`} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <h4 className="text-zinc-800 dark:text-zinc-200 truncate">
+                                            <div className="flex items-start justify-between mb-1.5">
+                                                <h4 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
                                                     {task.title}
                                                 </h4>
-                                                <span className={`ml-2 px-2 py-1 rounded text-xs ${statusColors[task.status] || "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"}`}>
-                                                    {task.status.replace("_", " ")}
+                                                <span className={`ml-2 px-2 py-0.5 rounded text-[11px] font-medium ${statusColors[task.status] || "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"}`}>
+                                                    {(task.status || "TODO").replace("_", " ")}
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-                                                <span className="capitalize">{task.type.toLowerCase()}</span>
+                                                <span className="capitalize">{(task.type || "task").toLowerCase()}</span>
                                                 {task.assignee && (
                                                     <div className="flex items-center gap-1">
-                                                        <div className="w-4 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center justify-center text-[10px] text-zinc-800 dark:text-zinc-200">
-                                                            {task.assignee.name[0].toUpperCase()}
+                                                        <div className="w-4 h-4 bg-zinc-300 dark:bg-zinc-700 rounded-full flex items-center justify-center text-[10px] font-semibold text-zinc-800 dark:text-zinc-200">
+                                                            {task.assignee.name ? task.assignee.name[0].toUpperCase() : 'U'}
                                                         </div>
-                                                        {task.assignee.name}
+                                                        <span>{task.assignee.name || "Assigned"}</span>
                                                     </div>
                                                 )}
                                                 <span>
-                                                    {format(new Date(task.updatedAt), "MMM d, h:mm a")}
+                                                    {taskDate ? format(new Date(taskDate), "MMM d, h:mm a") : "Recently"}
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </Link>
                             );
                         })}
                     </div>

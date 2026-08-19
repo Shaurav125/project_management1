@@ -1,5 +1,5 @@
 import { FolderOpen, CheckCircle, Users, AlertTriangle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { motion } from "motion/react";
 
@@ -8,13 +8,52 @@ export default function StatsGrid() {
         (state) => state?.workspace?.currentWorkspace || null
     );
 
-    const [stats, setStats] = useState({
-        totalProjects: 0,
-        activeProjects: 0,
-        completedProjects: 0,
-        myTasks: 0,
-        overdueIssues: 0,
-    });
+    const stats = useMemo(() => {
+        if (!currentWorkspace?.projects) {
+            return {
+                totalProjects: 0,
+                activeProjects: 0,
+                completedProjects: 0,
+                myTasks: 0,
+                overdueIssues: 0,
+            };
+        }
+
+        const now = new Date();
+        const projects = currentWorkspace.projects;
+
+        const totalProjects = projects.length;
+        const activeProjects = projects.filter((p) => p.status !== "CANCELLED" && p.status !== "COMPLETED").length;
+        const completedProjects = projects.filter((p) => p.status === "COMPLETED").length;
+
+        let myTasks = 0;
+        let overdueIssues = 0;
+
+        for (const project of projects) {
+            if (Array.isArray(project.tasks)) {
+                for (const task of project.tasks) {
+                    if (
+                        task.assignee?.email === currentWorkspace.owner?.email ||
+                        task.assigneeId === "user_1" ||
+                        task.assignee?.id === "user_1"
+                    ) {
+                        myTasks++;
+                    }
+                    if (task.status !== "DONE" && task.due_date && new Date(task.due_date) < now) {
+                        overdueIssues++;
+                    }
+                }
+            }
+        }
+
+        return {
+            totalProjects,
+            activeProjects,
+            completedProjects,
+            myTasks,
+            overdueIssues,
+        };
+    }, [currentWorkspace]);
 
     const statCards = [
         {
@@ -43,7 +82,7 @@ export default function StatsGrid() {
         },
         {
             icon: AlertTriangle,
-            title: "Overdue",
+            title: "Overdue Tasks",
             value: stats.overdueIssues,
             subtitle: "need attention",
             bgColor: "bg-amber-500/10",
@@ -51,49 +90,15 @@ export default function StatsGrid() {
         },
     ];
 
-    useEffect(() => {
-        if (currentWorkspace && currentWorkspace.projects) {
-            setStats({
-                totalProjects: currentWorkspace.projects.length,
-                activeProjects: currentWorkspace.projects.filter(
-                    (p) => p.status !== "CANCELLED" && p.status !== "COMPLETED"
-                ).length,
-                completedProjects: currentWorkspace.projects
-                    .filter((p) => p.status === "COMPLETED")
-                    .reduce((acc, project) => acc + (project.tasks ? project.tasks.length : 0), 0),
-                myTasks: currentWorkspace.projects.reduce(
-                    (acc, project) =>
-                        acc +
-                        (project.tasks
-                            ? project.tasks.filter(
-                                  (t) =>
-                                      t.assignee?.email === currentWorkspace.owner?.email ||
-                                      t.assigneeId === "user_1"
-                              ).length
-                            : 0),
-                    0
-                ),
-                overdueIssues: currentWorkspace.projects.reduce(
-                    (acc, project) =>
-                        acc +
-                        (project.tasks
-                            ? project.tasks.filter((t) => t.due_date && new Date(t.due_date) < new Date()).length
-                            : 0),
-                    0
-                ),
-            });
-        }
-    }, [currentWorkspace]);
-
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-9">
             {statCards.map(
                 ({ icon: Icon, title, value, subtitle, bgColor, textColor }, i) => (
                     <motion.div
-                        key={i}
+                        key={title}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: i * 0.06, ease: "easeOut" }}
+                        transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
                         whileHover={{ y: -3, transition: { duration: 0.15 } }}
                         className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 rounded-xl shadow-xs"
                     >

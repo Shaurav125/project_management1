@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Calendar, UsersIcon, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
@@ -22,11 +22,7 @@ const ProjectOverview = () => {
 
     const currentWorkspace = useSelector((state) => state?.workspace?.currentWorkspace || null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [projects, setProjects] = useState([]);
-
-    useEffect(() => {
-        setProjects(currentWorkspace?.projects || []);
-    }, [currentWorkspace]);
+    const projects = currentWorkspace?.projects || [];
 
     return currentWorkspace && (
         <div className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 rounded-xl overflow-hidden shadow-xs">
@@ -44,7 +40,7 @@ const ProjectOverview = () => {
                             <FolderOpen size={32} />
                         </div>
                         <p className="text-zinc-600 dark:text-zinc-400">No projects yet</p>
-                        <button onClick={() => setIsDialogOpen(true)} className="mt-4 px-4 py-2 text-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:text-zinc-200 rounded hover:opacity-90 transition">
+                        <button onClick={() => setIsDialogOpen(true)} className="mt-4 px-4 py-2 text-sm bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:text-zinc-200 rounded-lg hover:opacity-90 transition cursor-pointer">
                             Create your First Project
                         </button>
                         <CreateProjectDialog isDialogOpen={isDialogOpen} setIsDialogOpen={setIsDialogOpen} />
@@ -63,10 +59,10 @@ const ProjectOverview = () => {
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 ml-4">
-                                        <span className={`text-xs px-2 py-1 rounded ${statusColors[project.status]}`}>
-                                            {project.status.replace('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())}
+                                        <span className={`text-xs px-2 py-1 rounded ${statusColors[project.status] || "bg-zinc-200 text-zinc-700"}`}>
+                                            {(project.status || "ACTIVE").replace('_', ' ').replaceAll(/\b\w/g, c => c.toUpperCase())}
                                         </span>
-                                        <div className={`w-2 h-2 rounded-full border-2 ${priorityColors[project.priority]}`} />
+                                        <div className={`w-2 h-2 rounded-full border-2 ${priorityColors[project.priority] || "border-zinc-400 text-zinc-500"}`} />
                                     </div>
                                 </div>
 

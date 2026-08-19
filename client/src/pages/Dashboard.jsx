@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useAppUser } from '../context/AppAuth'
 import { motion } from 'motion/react'
 import StatsGrid from '../components/StatsGrid'
 import ProjectOverview from '../components/ProjectOverview'
@@ -10,7 +10,7 @@ import TasksSummary from '../components/TasksSummary'
 import CreateProjectDialog from '../components/CreateProjectDialog'
 
 const Dashboard = () => {
-    const { user } = useUser()
+    const { user } = useAppUser()
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     return (

@@ -1,25 +1,39 @@
-import React, { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { ArrowRight, Clock, AlertTriangle, User } from "lucide-react";
-import { useUser } from "@clerk/clerk-react";
+import { useUser } from "../context/AppAuth";
 import { useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 
 export default function TasksSummary() {
-
     const { user } = useUser();
     const { currentWorkspace } = useSelector((state) => state.workspace);
 
-    const [tasks, setTasks] = useState([]);
-
-    // Get all tasks for all projects in current workspace
-    useEffect(() => {
-        if (currentWorkspace) {
-            setTasks(currentWorkspace.projects.flatMap((project) => project.tasks));
+    const { myTasks, overdueTasks, inProgressIssues } = useMemo(() => {
+        if (!currentWorkspace?.projects) {
+            return { myTasks: [], overdueTasks: [], inProgressIssues: [] };
         }
-    }, [currentWorkspace]);
 
-    const myTasks = tasks.filter(i => i.assigneeId === (user?.id || 'user_1'));
-    const overdueTasks = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'DONE');
-    const inProgressIssues = tasks.filter(i => i.status === 'IN_PROGRESS');
+        const now = new Date();
+        const allTasks = currentWorkspace.projects.flatMap((project) =>
+            (project.tasks || []).map((t) => ({ ...t, projectId: project.id }))
+        );
+
+        const currentUserId = user?.id || "user_1";
+        const currentUserEmail = user?.email || user?.primaryEmailAddress?.emailAddress || currentWorkspace.owner?.email;
+
+        const my = allTasks.filter(
+            (t) =>
+                t.assigneeId === currentUserId ||
+                t.assignee?.id === currentUserId ||
+                t.assignee?.email === currentUserEmail
+        );
+        const overdue = allTasks.filter(
+            (t) => t.due_date && new Date(t.due_date) < now && t.status !== "DONE"
+        );
+        const inProgress = allTasks.filter((t) => t.status === "IN_PROGRESS");
+
+        return { myTasks: my, overdueTasks: overdue, inProgressIssues: inProgress };
+    }, [currentWorkspace, user]);
 
     const summaryCards = [
         {
@@ -56,7 +70,7 @@ export default function TasksSummary() {
                             </div>
                             <div className="flex items-center justify-between flex-1">
                                 <h3 className="text-sm font-medium text-gray-800 dark:text-white">{card.title}</h3>
-                                <span className={`inline-block mt-1 px-2 py-1 rounded text-xs font-semibold ${card.color}`}>
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${card.color}`}>
                                     {card.count}
                                 </span>
                             </div>
@@ -70,19 +84,26 @@ export default function TasksSummary() {
                         ) : (
                             <div className="space-y-3">
                                 {card.items.map((issue) => (
-                                    <div key={issue.id} className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 border border-transparent dark:border-zinc-800/40 transition-colors cursor-pointer">
+                                    <Link
+                                        key={issue.id}
+                                        to={`/taskDetails?projectId=${issue.projectId}&taskId=${issue.id}`}
+                                        className="block p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 hover:bg-zinc-100 dark:hover:bg-zinc-800/70 border border-transparent dark:border-zinc-800/40 transition-colors cursor-pointer"
+                                    >
                                         <h4 className="text-sm font-medium text-gray-800 dark:text-white truncate">
                                             {issue.title}
                                         </h4>
                                         <p className="text-xs text-gray-600 dark:text-zinc-400 capitalize mt-1">
-                                            {issue.type} • {issue.priority} priority
+                                            {issue.type || "TASK"} • {(issue.priority || "MEDIUM").toLowerCase()} priority
                                         </p>
-                                    </div>
+                                    </Link>
                                 ))}
                                 {card.count > 3 && (
-                                    <button className="flex items-center justify-center w-full text-sm text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white mt-2 cursor-pointer transition-colors">
-                                        View {card.count - 3} more <ArrowRight className="w-3 h-3 ml-2" />
-                                    </button>
+                                    <Link
+                                        to="/projects"
+                                        className="flex items-center justify-center w-full text-xs text-gray-500 dark:text-zinc-400 hover:text-gray-800 dark:hover:text-white mt-2 cursor-pointer transition-colors"
+                                    >
+                                        View {card.count - 3} more <ArrowRight className="w-3 h-3 ml-1.5" />
+                                    </Link>
                                 )}
                             </div>
                         )}

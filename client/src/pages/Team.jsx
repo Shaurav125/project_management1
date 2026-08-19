@@ -1,28 +1,30 @@
-import { useEffect, useState } from "react";
-import { UsersIcon, Search, UserPlus, Mail, Shield, Activity } from "lucide-react";
+import { useState, useMemo } from "react";
+import { UsersIcon, Search, UserPlus, Shield, Activity } from "lucide-react";
 import InviteMemberDialog from "../components/InviteMemberDialog";
 import { useSelector } from "react-redux";
 import { motion } from "motion/react";
 
 const Team = () => {
-
-    const [tasks, setTasks] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [users, setUsers] = useState([]);
     const currentWorkspace = useSelector((state) => state?.workspace?.currentWorkspace || null);
-    const projects = currentWorkspace?.projects || [];
-
-    const filteredUsers = users.filter(
-        (user) =>
-            user?.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user?.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const projects = useMemo(() => currentWorkspace?.projects || [], [currentWorkspace]);
+    const users = useMemo(() => currentWorkspace?.members || [], [currentWorkspace]);
+    const tasks = useMemo(
+        () => projects.reduce((acc, project) => [...acc, ...(project.tasks || [])], []),
+        [projects]
     );
 
-    useEffect(() => {
-        setUsers(currentWorkspace?.members || []);
-        setTasks(currentWorkspace?.projects?.reduce((acc, project) => [...acc, ...project.tasks], []) || []);
-    }, [currentWorkspace]);
+    const filteredUsers = useMemo(() => {
+        if (!searchTerm.trim()) return users;
+        const term = searchTerm.toLowerCase();
+        return users.filter(
+            (user) =>
+                user?.user?.name?.toLowerCase().includes(term) ||
+                user?.user?.email?.toLowerCase().includes(term)
+        );
+    }, [users, searchTerm]);
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
