@@ -117,6 +117,26 @@ async function setupServer() {
                 appType: 'spa',
             });
             app.use(vite.middlewares);
+
+            // Development SPA fallback to guarantee index.html loads for all client routes
+            app.use(async (req, res, next) => {
+                if (req.method !== 'GET' || req.path.startsWith('/api')) {
+                    return next();
+                }
+                try {
+                    const indexPath = path.resolve(clientRoot, 'index.html');
+                    if (fs.existsSync(indexPath)) {
+                        let template = fs.readFileSync(indexPath, 'utf-8');
+                        template = await vite.transformIndexHtml(req.originalUrl || '/', template);
+                        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+                    } else {
+                        next();
+                    }
+                } catch (e) {
+                    vite.ssrFixStacktrace(e);
+                    next(e);
+                }
+            });
         } catch (e) {
             console.warn("Vite middleware note:", e.message);
         }
@@ -125,13 +145,17 @@ async function setupServer() {
         const clientDist = path.resolve(clientRoot, 'dist');
         const finalDistPath = fs.existsSync(path.resolve(rootDist, 'index.html')) ? rootDist : clientDist;
         app.use(express.static(finalDistPath));
-        app.get('*all', (req, res) => {
-            const indexPath = path.resolve(finalDistPath, 'index.html');
-            if (fs.existsSync(indexPath)) {
-                res.sendFile(indexPath);
-            } else {
-                res.send('<!doctype html><html><head><meta charset="utf-8"/><title>Project Management</title></head><body><div id="root"></div></body></html>');
+        
+        // Universal catch-all for SPA client-side routing in production
+        app.use((req, res, next) => {
+            if (req.method === 'GET' && !req.path.startsWith('/api')) {
+                const indexPath = path.resolve(finalDistPath, 'index.html');
+                if (fs.existsSync(indexPath)) {
+                    return res.sendFile(indexPath);
+                }
+                return res.send('<!doctype html><html><head><meta charset="utf-8"/><title>Project Management</title></head><body><div id="root"></div></body></html>');
             }
+            next();
         });
     }
 

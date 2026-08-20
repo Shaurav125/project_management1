@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
 import { Trash2, AlertCircle } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { deleteProject } from "../features/workspaceSlice";
@@ -26,19 +25,23 @@ const ProjectCard = ({ project, index = 0 }) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDeleting(true);
-        const toastId = toast.loading("Deleting project...");
+        const toastId = toast.loading("Deleting project from database...");
         try {
             const token = getToken ? await getToken() : "demo_token";
-            try {
-                await api.delete(`/api/projects/${project.id}`, { headers: { Authorization: `Bearer ${token}` } });
-            } catch (err) {
-                console.warn("Delete project notice:", err);
-            }
+            await api.delete(`/api/projects/${project.id}`, { headers: { Authorization: `Bearer ${token}` } });
+
             dispatch(deleteProject(project.id));
-            toast.success("Project deleted", { id: toastId });
+            toast.success("Project deleted from database", { id: toastId });
             setShowDeleteModal(false);
         } catch (error) {
-            toast.error("Failed to delete project", { id: toastId });
+            console.error("Delete project error:", error);
+            if (error?.response?.status === 404) {
+                dispatch(deleteProject(project.id));
+                toast.success("Project removed", { id: toastId });
+                setShowDeleteModal(false);
+            } else {
+                toast.error(error?.response?.data?.message || "Failed to delete project from database", { id: toastId });
+            }
         } finally {
             setIsDeleting(false);
         }
@@ -46,13 +49,7 @@ const ProjectCard = ({ project, index = 0 }) => {
 
     return (
         <>
-            <motion.div
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: index * 0.05 }}
-                whileHover={{ y: -4, transition: { duration: 0.15 } }}
-                className="h-full relative"
-            >
+            <div className="h-full relative hover:-translate-y-1 transition-all duration-200">
                 <Link
                     to={`/projectsDetail?id=${project.id}&tab=tasks`}
                     className="flex flex-col justify-between h-full bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-gray-200 dark:border-zinc-800/80 hover:border-gray-300 dark:hover:border-zinc-700/80 rounded-xl p-5 shadow-xs transition-all duration-200 group"
@@ -99,16 +96,14 @@ const ProjectCard = ({ project, index = 0 }) => {
                             <span className="text-gray-700 dark:text-zinc-200">{project.progress || 0}%</span>
                         </div>
                         <div className="w-full bg-gray-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${project.progress || 0}%` }}
-                                transition={{ duration: 0.6, ease: "easeOut" }}
-                                className="h-full rounded-full bg-blue-500"
+                            <div
+                                style={{ width: `${project.progress || 0}%` }}
+                                className="h-full rounded-full bg-blue-500 transition-all duration-500"
                             />
                         </div>
                     </div>
                 </Link>
-            </motion.div>
+            </div>
 
             {/* Quick Delete Modal */}
             {showDeleteModal && (

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Calendar as CalendarIcon, Mail, UserPlus } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { addTask } from "../features/workspaceSlice";
 import { useAuth } from "../context/AppAuth";
@@ -12,9 +12,36 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
     const dispatch = useDispatch();
     const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace || null);
     const project = currentWorkspace?.projects.find((p) => p.id === projectId);
-    const teamMembers = project?.members || [];
+    
+    // Combine project members and workspace members
+    const allAvailableMembers = useMemo(() => {
+        const list = [];
+        const seen = new Set();
+
+        (project?.members || []).forEach((m) => {
+            const uid = m?.user?.id || m?.userId;
+            const email = m?.user?.email;
+            if (email && !seen.has(email)) {
+                seen.add(email);
+                list.push({ id: uid || email, name: m?.user?.name || email.split("@")[0], email, isProjectMember: true });
+            }
+        });
+
+        (currentWorkspace?.members || []).forEach((m) => {
+            const uid = m?.user?.id || m?.userId;
+            const email = m?.user?.email;
+            if (email && !seen.has(email)) {
+                seen.add(email);
+                list.push({ id: uid || email, name: m?.user?.name || email.split("@")[0], email, isProjectMember: false });
+            }
+        });
+
+        return list;
+    }, [project, currentWorkspace]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isCustomEmailMode, setIsCustomEmailMode] = useState(false);
+    const [customEmail, setCustomEmail] = useState("");
     const [formData, setFormData] = useState({
         title: "",
         description: "",
@@ -29,14 +56,33 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
         e.preventDefault();
         setIsSubmitting(true);
 
+        const targetAssigneeId = isCustomEmailMode ? "" : formData.assigneeId;
+        const targetAssigneeEmail = isCustomEmailMode ? customEmail.trim() : "";
+
+        if (isCustomEmailMode && !targetAssigneeEmail) {
+            toast.error("Please enter an email address to invite");
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             const token = getToken ? await getToken() : "demo_token";
             let createdTask = null;
 
             try {
-                const { data } = await api.post("/api/tasks", { ...formData, workspaceId: currentWorkspace?.id, projectId }, { headers: { Authorization: `Bearer ${token}` } });
+                const { data } = await api.post(
+                    "/api/tasks",
+                    {
+                        ...formData,
+                        assigneeId: targetAssigneeId,
+                        assigneeEmail: targetAssigneeEmail,
+                        workspaceId: currentWorkspace?.id,
+                        projectId
+                    },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
                 createdTask = data.task;
-                toast.success(data?.message || "Task created successfully");
+                toast.success(data?.message || "Task created & invitation email prepared!");
             } catch (err) {
                 console.warn("Server task creation fallback:", err);
                 createdTask = {
@@ -47,7 +93,12 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                     status: formData.status || "TODO",
                     type: formData.type || "TASK",
                     priority: formData.priority || "MEDIUM",
-                    assigneeId: formData.assigneeId,
+                    assigneeId: targetAssigneeId || targetAssigneeEmail || "user_1",
+                    assignee: {
+                        id: targetAssigneeId || "user_1",
+                        email: targetAssigneeEmail || "assigned@workspace.local",
+                        name: targetAssigneeEmail ? targetAssigneeEmail.split("@")[0] : "Assigned Member"
+                    },
                     due_date: formData.due_date ? new Date(formData.due_date) : new Date(),
                     createdAt: new Date().toISOString(),
                     comments: [],
@@ -60,6 +111,8 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
             }
 
             setShowCreateTask(false);
+            setCustomEmail("");
+            setIsCustomEmailMode(false);
             setFormData({
                 title: "",
                 description: "",
@@ -91,7 +144,7 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                     {/* Description */}
                     <div className="space-y-1">
                         <label htmlFor="description" className="text-sm font-medium">Description</label>
-                        <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe the task" className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1 h-24 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Describe the task" className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1 h-20 focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
 
                     {/* Type & Priority */}
@@ -109,7 +162,7 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
 
                         <div className="space-y-1">
                             <label className="text-sm font-medium">Priority</label>
-                            <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1"                             >
+                            <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1" >
                                 <option value="LOW">Low</option>
                                 <option value="MEDIUM">Medium</option>
                                 <option value="HIGH">High</option>
@@ -120,15 +173,55 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                     {/* Assignee and Status */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-sm font-medium">Assignee</label>
-                            <select value={formData.assigneeId} onChange={(e) => setFormData({ ...formData, assigneeId: e.target.value })} className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1" >
-                                <option value="">Unassigned</option>
-                                {teamMembers.map((member) => (
-                                    <option key={member?.user.id} value={member?.user.id}>
-                                        {member?.user.email}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium">Assignee</label>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsCustomEmailMode(!isCustomEmailMode);
+                                        if (!isCustomEmailMode) {
+                                            setFormData(prev => ({ ...prev, assigneeId: "" }));
+                                        }
+                                    }}
+                                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                                >
+                                    {isCustomEmailMode ? "Pick Member" : "+ Invite Email"}
+                                </button>
+                            </div>
+
+                            {isCustomEmailMode ? (
+                                <div className="relative mt-1">
+                                    <input
+                                        type="email"
+                                        value={customEmail}
+                                        onChange={(e) => setCustomEmail(e.target.value)}
+                                        placeholder="colleague@domain.com"
+                                        className="w-full rounded dark:bg-zinc-900 border border-blue-400 dark:border-blue-500 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-xs focus:outline-none"
+                                        required={isCustomEmailMode}
+                                    />
+                                </div>
+                            ) : (
+                                <select
+                                    value={formData.assigneeId}
+                                    onChange={(e) => {
+                                        if (e.target.value === "__invite_email__") {
+                                            setIsCustomEmailMode(true);
+                                            setFormData({ ...formData, assigneeId: "" });
+                                        } else {
+                                            setFormData({ ...formData, assigneeId: e.target.value });
+                                        }
+                                    }}
+                                    className="w-full rounded dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-200 text-sm mt-1"
+                                >
+                                    <option value="">Unassigned</option>
+                                    {allAvailableMembers.map((member) => (
+                                        <option key={member.id} value={member.id}>
+                                            {member.name} ({member.email}) {member.isProjectMember ? "" : "• WS"}
+                                        </option>
+                                    ))}
+                                    <option value="__invite_email__">+ Invite by Email...</option>
+                                </select>
+                            )}
                         </div>
 
                         <div className="space-y-1">
@@ -140,6 +233,14 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
                             </select>
                         </div>
                     </div>
+
+                    {/* Email notification notice */}
+                    {(formData.assigneeId || (isCustomEmailMode && customEmail)) && (
+                        <div className="flex items-center gap-2 p-2 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                            <Mail className="size-3.5 shrink-0" />
+                            <span>An invitation email with the direct task link will be dispatched.</span>
+                        </div>
+                    )}
 
                     {/* Due Date */}
                     <div className="space-y-1">
@@ -157,10 +258,10 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
 
                     {/* Footer */}
                     <div className="flex justify-end gap-2 pt-2">
-                        <button type="button" onClick={() => setShowCreateTask(false)} className="rounded border border-zinc-300 dark:border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition" >
+                        <button type="button" onClick={() => setShowCreateTask(false)} className="rounded border border-zinc-300 dark:border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition cursor-pointer" >
                             Cancel
                         </button>
-                        <button type="submit" disabled={isSubmitting} className="rounded px-5 py-2 text-sm bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white dark:text-zinc-200 transition" >
+                        <button type="submit" disabled={isSubmitting} className="rounded px-5 py-2 text-sm bg-gradient-to-br from-blue-500 to-blue-600 hover:opacity-90 text-white dark:text-zinc-200 transition cursor-pointer" >
                             {isSubmitting ? "Creating..." : "Create Task"}
                         </button>
                     </div>
@@ -169,3 +270,4 @@ export default function CreateTaskDialog({ showCreateTask, setShowCreateTask, pr
         </div>
     ) : null;
 }
+

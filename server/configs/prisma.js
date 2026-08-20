@@ -34,8 +34,9 @@ const store = {
     workspaces: [
         {
             id: "org_1",
-            name: "Corp Workspace",
-            slug: "corp-workspace",
+            name: "Engineering & Product",
+            org_name: "Apex Global",
+            slug: "engineering-product",
             description: "Main workspace for cross-functional product management",
             settings: {},
             ownerId: "user_1",
@@ -269,6 +270,9 @@ function enrichWorkspace(workspace) {
 
     return {
         ...workspace,
+        org_name: workspace.org_name || workspace.orgName || workspace.organizationName || "Apex Global",
+        orgName: workspace.org_name || workspace.orgName || workspace.organizationName || "Apex Global",
+        image_url: workspace.image_url || workspace.imageUrl || workspace.logo || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80",
         members,
         projects,
         owner: enrichUser(owner),
@@ -341,11 +345,12 @@ const mockPrisma = {
             const newWs = {
                 id: data.id || `ws_${Date.now()}`,
                 name: data.name || "Untitled Workspace",
+                org_name: data.org_name || data.orgName || data.organizationName || data.name || "Apex Global",
                 slug: data.slug || `ws-${Date.now()}`,
                 description: data.description || "",
                 settings: data.settings || {},
                 ownerId: data.ownerId || "user_1",
-                image_url: data.image_url || "",
+                image_url: data.image_url || data.imageUrl || data.logo || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80",
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -355,7 +360,13 @@ const mockPrisma = {
         update: async ({ where, data }) => {
             const idx = store.workspaces.findIndex(w => w.id === where.id);
             if (idx === -1) return null;
-            store.workspaces[idx] = { ...store.workspaces[idx], ...data, updatedAt: new Date() };
+            store.workspaces[idx] = {
+                ...store.workspaces[idx],
+                ...data,
+                org_name: data.org_name || data.orgName || data.organizationName || store.workspaces[idx].org_name,
+                image_url: data.image_url || data.imageUrl || data.logo || store.workspaces[idx].image_url,
+                updatedAt: new Date(),
+            };
             return enrichWorkspace(store.workspaces[idx]);
         },
         delete: async ({ where }) => {
@@ -394,6 +405,8 @@ const mockPrisma = {
                 store.workspaceMembers = store.workspaceMembers.filter(
                     wm => !(wm.workspaceId === where.workspaceId && wm.userId === where.userId)
                 );
+            } else if (where?.workspaceId) {
+                store.workspaceMembers = store.workspaceMembers.filter(wm => wm.workspaceId !== where.workspaceId);
             }
             return { count: initialLen - store.workspaceMembers.length };
         },
@@ -434,6 +447,23 @@ const mockPrisma = {
                 updatedAt: new Date(),
             };
             return enrichProject(store.projects[idx]);
+        },
+        delete: async ({ where }) => {
+            const idx = store.projects.findIndex(p => p.id === where.id);
+            if (idx === -1) return null;
+            const deleted = store.projects.splice(idx, 1)[0];
+            return enrichProject(deleted);
+        },
+        deleteMany: async ({ where }) => {
+            const initialLen = store.projects.length;
+            if (where?.id?.in) {
+                store.projects = store.projects.filter(p => !where.id.in.includes(p.id));
+            } else if (where?.id) {
+                store.projects = store.projects.filter(p => p.id !== where.id);
+            } else if (where?.workspaceId) {
+                store.projects = store.projects.filter(p => p.workspaceId !== where.workspaceId);
+            }
+            return { count: initialLen - store.projects.length };
         },
     },
 

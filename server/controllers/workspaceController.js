@@ -1,4 +1,5 @@
 import prisma from "../configs/prisma.js";
+import { sendWorkspaceInviteEmail } from "../configs/nodemailer.js";
 
 // Get all workspaces for user
 export const getUserWorkspaces = async (req, res) => {
@@ -168,6 +169,20 @@ export const addWorkspaceMember = async (req, res) => {
             }
         });
 
+        // Dispatch Workspace Invite Email
+        const origin = req.get('origin') || process.env.VITE_BASEURL || 'http://localhost:3000';
+        try {
+            await sendWorkspaceInviteEmail({
+                memberEmail: user.email,
+                memberName: user.name,
+                workspaceName: workspace.name,
+                workspaceUrl: `${origin}/`,
+                role: assignedRole,
+            });
+        } catch (mailErr) {
+            console.warn("Workspace invite email error:", mailErr.message);
+        }
+
         res.json({
             member: {
                 ...member,
@@ -190,7 +205,9 @@ export const addWorkspaceMember = async (req, res) => {
 export const createWorkspace = async (req, res) => {
     try {
         const { userId } = await req.auth();
-        const { name, description, image_url } = req.body;
+        const { name, org_name, orgName, organizationName, description, image_url, logo, org_logo, orgLogo } = req.body;
+        const organization_name = org_name || orgName || organizationName || name || "Apex Global";
+        const workspace_logo = image_url || logo || org_logo || orgLogo || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80";
         const slug = `${(name || "workspace").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
 
         // Ensure user exists
@@ -209,9 +226,11 @@ export const createWorkspace = async (req, res) => {
             data: {
                 id: `ws_${Date.now()}`,
                 name: name || "New Workspace",
+                org_name: organization_name,
+                orgName: organization_name,
                 slug,
                 description: description || "",
-                image_url: image_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80",
+                image_url: workspace_logo,
                 ownerId: userId,
                 members: {
                     create: {
@@ -244,10 +263,15 @@ export const updateWorkspace = async (req, res) => {
     try {
         const { userId } = await req.auth();
         const workspaceId = req.params.workspaceId || req.params.id || req.body.id || req.body.workspaceId;
-        const { name, description, image_url, slug } = req.body;
+        const { name, org_name, orgName, organizationName, description, image_url, logo, org_logo, orgLogo, slug } = req.body;
 
-        const workspace = await prisma.workspace.findUnique({
-            where: { id: workspaceId },
+        const workspace = await prisma.workspace.findFirst({
+            where: {
+                OR: [
+                    { id: workspaceId },
+                    { slug: workspaceId },
+                ]
+            },
             include: { members: true }
         });
 
@@ -255,12 +279,17 @@ export const updateWorkspace = async (req, res) => {
             return res.status(404).json({ message: "Workspace not found" });
         }
 
+        const newOrgName = org_name || orgName || organizationName || (name !== undefined ? name : workspace.org_name);
+        const newImageUrl = image_url || logo || org_logo || orgLogo || (image_url !== undefined ? image_url : workspace.image_url);
+
         const updated = await prisma.workspace.update({
-            where: { id: workspaceId },
+            where: { id: workspace.id },
             data: {
                 name: name !== undefined ? name : workspace.name,
+                org_name: newOrgName,
+                orgName: newOrgName,
                 description: description !== undefined ? description : workspace.description,
-                image_url: image_url !== undefined ? image_url : workspace.image_url,
+                image_url: newImageUrl,
                 slug: slug !== undefined ? slug : workspace.slug,
             },
             include: {
@@ -275,7 +304,7 @@ export const updateWorkspace = async (req, res) => {
             }
         });
 
-        res.json({ workspace: updated, message: "Workspace updated successfully" });
+        res.json({ workspace: updated, message: "Workspace and organization details updated successfully" });
     } catch (error) {
         console.error("updateWorkspace error:", error);
         res.status(500).json({ message: error.code || error.message });
@@ -349,7 +378,7 @@ export const deleteWorkspace = async (req, res) => {
 
         res.json({
             success: true,
-            message: "Workspace and all related data deleted from database successfully",
+            message: "Workspace and all data under that organization deleted completely",
             deletedId: workspace.id
         });
     } catch (error) {

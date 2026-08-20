@@ -18,7 +18,7 @@ const App = () => {
                     path="/sign-in/*"
                     element={
                         <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
-                            <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+                            <SignIn routing="hash" />
                         </div>
                     }
                 />
@@ -26,7 +26,7 @@ const App = () => {
                     path="/sign-up/*"
                     element={
                         <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
-                            <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />
+                            <SignUp routing="hash" />
                         </div>
                     }
                 />
@@ -34,7 +34,7 @@ const App = () => {
                     path="/create-organization/*"
                     element={
                         <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4">
-                            <CreateOrganization routing="path" path="/create-organization" afterCreateOrganizationUrl="/" />
+                            <CreateOrganization routing="hash" />
                         </div>
                     }
                 />

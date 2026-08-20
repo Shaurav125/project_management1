@@ -1,13 +1,17 @@
 import { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
-import { Plus, Search, FolderOpen } from "lucide-react";
+import { Plus, Search, FolderOpen, Building2 } from "lucide-react";
 import ProjectCard from "../components/ProjectCard";
 import CreateProjectDialog from "../components/CreateProjectDialog";
 
 export default function Projects() {
-    const projects = useSelector(
-        (state) => state?.workspace?.currentWorkspace?.projects || []
+    const currentWorkspace = useSelector(
+        (state) => state?.workspace?.currentWorkspace
     );
+    const projects = currentWorkspace?.projects || [];
+
+    const orgName = currentWorkspace?.org_name || currentWorkspace?.orgName || currentWorkspace?.organizationName || "Apex Global";
+    const orgLogo = currentWorkspace?.image_url || currentWorkspace?.imageUrl || currentWorkspace?.logo || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80';
 
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -46,8 +50,18 @@ export default function Projects() {
             {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-1"> Projects </h1>
-                    <p className="text-gray-500 dark:text-zinc-400 text-sm"> Manage and track your projects </p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white"> Projects </h1>
+                        {currentWorkspace && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                <img src={orgLogo} alt={orgName} className="w-3.5 h-3.5 rounded-sm object-cover" />
+                                {orgName}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-gray-500 dark:text-zinc-400 text-sm">
+                        Manage and track projects for <span className="font-semibold text-gray-800 dark:text-zinc-200">{currentWorkspace?.name || "Workspace"}</span> (Organization: {orgName})
+                    </p>
                 </div>
                 <button onClick={() => setIsDialogOpen(true)} className="flex items-center px-5 py-2 text-sm rounded bg-gradient-to-br from-blue-500 to-blue-600 text-white hover:opacity-90 transition" >
                     <Plus className="size-4 mr-2" /> New Project

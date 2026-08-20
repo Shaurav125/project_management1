@@ -1,30 +1,25 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../configs/api";
-import { dummyWorkspaces } from "../assets/assets";
 
 export const fetchWorkspaces = createAsyncThunk("workspace/fetchWorkspaces", async (payload = {}) => {
     try {
         const getToken = payload?.getToken;
         const token = getToken ? await getToken() : "demo_token";
         const { data } = await api.get("/api/workspaces", { headers: { Authorization: `Bearer ${token}` } });
-        if (data?.workspaces && Array.isArray(data.workspaces) && data.workspaces.length > 0) {
+        if (data?.workspaces && Array.isArray(data.workspaces)) {
             return data.workspaces;
         }
-        return dummyWorkspaces;
+        return [];
     } catch (error) {
         console.warn("fetchWorkspaces notice:", error?.response?.data?.message || error.message);
-        return dummyWorkspaces;
+        return [];
     }
 });
 
-const initialWs = dummyWorkspaces;
-const initialSavedId = typeof window !== 'undefined' ? localStorage.getItem("currentWorkspaceId") : null;
-const initialCurrentWs = (initialSavedId && initialWs.find(w => w.id === initialSavedId)) || initialWs[0];
-
 const initialState = {
-    workspaces: initialWs,
-    currentWorkspace: initialCurrentWs,
-    loading: false,
+    workspaces: [],
+    currentWorkspace: null,
+    loading: true,
 };
 
 const workspaceSlice = createSlice({
@@ -205,39 +200,51 @@ const workspaceSlice = createSlice({
             }));
         },
         removeProjectMember: (state, action) => {
-            if (!action.payload?.projectId || !action.payload?.userId) return;
-            const { projectId, userId } = action.payload;
-            if (state.currentWorkspace?.projects) {
-                state.currentWorkspace.projects = state.currentWorkspace.projects.map((p) => {
-                    if (p.id === projectId) {
-                        return {
-                            ...p,
-                            members: (p.members || []).filter(m => m.userId !== userId && m.user?.id !== userId && m.id !== userId)
-                        };
+            if (!action.payload?.projectId) return;
+            const { projectId, userId, email } = action.payload;
+            const matchMember = (m) => {
+                if (!m) return false;
+                if (userId && (m.userId === userId || m.user?.id === userId || m.id === userId || m.user?.email === userId)) return true;
+                if (email && (m.user?.email === email || m.email === email || m.userId === email)) return true;
+                return false;
+            };
+
+            const cleanProject = (p) => {
+                if (p.id !== projectId && p._id !== projectId) return p;
+                const members = (p.members || []).filter(m => !matchMember(m));
+                const isRemovedLead = p.team_lead === userId || p.team_lead === email || (p.members || []).some(m => matchMember(m) && (p.team_lead === m.userId || p.team_lead === m.user?.id || p.team_lead === m.user?.email));
+                const tasks = (p.tasks || []).map((t) => {
+                    const assigneeMatches = matchMember(t.assignee) || t.assigneeId === userId || t.assigneeId === email;
+                    if (assigneeMatches) {
+                        return { ...t, assigneeId: null, assignee: null };
                     }
-                    return p;
+                    return t;
                 });
+                return {
+                    ...p,
+                    team_lead: isRemovedLead ? "" : p.team_lead,
+                    members,
+                    tasks
+                };
+            };
+
+            if (state.currentWorkspace?.projects) {
+                state.currentWorkspace.projects = state.currentWorkspace.projects.map(cleanProject);
             }
             state.workspaces = state.workspaces.map((w) => ({
                 ...w,
-                projects: w.projects ? w.projects.map((p) => {
-                    if (p.id === projectId) {
-                        return {
-                            ...p,
-                            members: (p.members || []).filter(m => m.userId !== userId && m.user?.id !== userId && m.id !== userId)
-                        };
-                    }
-                    return p;
-                }) : []
+                projects: w.projects ? w.projects.map(cleanProject) : []
             }));
         },
         setProjectLead: (state, action) => {
-            if (!action.payload?.projectId || !action.payload?.leadUserId) return;
+            if (!action.payload?.projectId) return;
             const { projectId, leadUserId } = action.payload;
+            const leadVal = (leadUserId === "none" || leadUserId === "unassigned") ? "" : (leadUserId || "");
+            
             if (state.currentWorkspace?.projects) {
                 state.currentWorkspace.projects = state.currentWorkspace.projects.map((p) => {
-                    if (p.id === projectId) {
-                        return { ...p, team_lead: leadUserId };
+                    if (p.id === projectId || p._id === projectId) {
+                        return { ...p, team_lead: leadVal };
                     }
                     return p;
                 });
@@ -245,8 +252,8 @@ const workspaceSlice = createSlice({
             state.workspaces = state.workspaces.map((w) => ({
                 ...w,
                 projects: w.projects ? w.projects.map((p) => {
-                    if (p.id === projectId) {
-                        return { ...p, team_lead: leadUserId };
+                    if (p.id === projectId || p._id === projectId) {
+                        return { ...p, team_lead: leadVal };
                     }
                     return p;
                 }) : []
@@ -262,15 +269,16 @@ const workspaceSlice = createSlice({
             }
         });
         builder.addCase(fetchWorkspaces.fulfilled, (state, action) => {
-            if (action.payload && action.payload.length > 0) {
-                state.workspaces = action.payload;
-                const localStorageCurrentWorkspaceId = localStorage.getItem("currentWorkspaceId");
-                if (localStorageCurrentWorkspaceId) {
-                    const findWorkspace = action.payload.find((w) => w.id === localStorageCurrentWorkspaceId);
-                    state.currentWorkspace = findWorkspace || action.payload[0];
-                } else {
-                    state.currentWorkspace = action.payload[0];
-                }
+            const list = action.payload || [];
+            state.workspaces = list;
+            const localStorageCurrentWorkspaceId = localStorage.getItem("currentWorkspaceId");
+            if (localStorageCurrentWorkspaceId && list.length > 0) {
+                const findWorkspace = list.find((w) => w.id === localStorageCurrentWorkspaceId || w._id === localStorageCurrentWorkspaceId);
+                state.currentWorkspace = findWorkspace || list[0];
+            } else if (list.length > 0) {
+                state.currentWorkspace = list[0];
+            } else {
+                state.currentWorkspace = null;
             }
             state.loading = false;
         });

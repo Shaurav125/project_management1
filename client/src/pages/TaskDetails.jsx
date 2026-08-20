@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAuth, useUser } from "../context/AppAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 import api from "../configs/api";
-import { ArrowLeft, CalendarIcon, MessageCircle, PenIcon, Trash2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, MessageCircle, PenIcon, Trash2, UserPlus, Mail } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { deleteTask } from "../features/workspaceSlice";
+import { deleteTask, updateTask as updateTaskInStore } from "../features/workspaceSlice";
 
 const TaskDetails = () => {
     const [searchParams] = useSearchParams();
@@ -24,8 +24,36 @@ const TaskDetails = () => {
     const [loading, setLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isReassignOpen, setIsReassignOpen] = useState(false);
+    const [customAssigneeEmail, setCustomAssigneeEmail] = useState("");
+    const [isAssigning, setIsAssigning] = useState(false);
 
     const { currentWorkspace } = useSelector((state) => state.workspace);
+
+    const availableMembers = useMemo(() => {
+        const list = [];
+        const seen = new Set();
+
+        (project?.members || []).forEach((m) => {
+            const uid = m?.user?.id || m?.userId;
+            const email = m?.user?.email;
+            if (email && !seen.has(email)) {
+                seen.add(email);
+                list.push({ id: uid || email, name: m?.user?.name || email.split("@")[0], email, image: m?.user?.image });
+            }
+        });
+
+        (currentWorkspace?.members || []).forEach((m) => {
+            const uid = m?.user?.id || m?.userId;
+            const email = m?.user?.email;
+            if (email && !seen.has(email)) {
+                seen.add(email);
+                list.push({ id: uid || email, name: m?.user?.name || email.split("@")[0], email, image: m?.user?.image });
+            }
+        });
+
+        return list;
+    }, [project, currentWorkspace]);
 
     const fetchComments = async () => {
         if (!taskId) return;
@@ -51,6 +79,34 @@ const TaskDetails = () => {
         setTask(tsk);
         setProject(proj);
         setLoading(false);
+    };
+
+    const handleAssignMember = async (assigneeId, assigneeEmail) => {
+        if (!task) return;
+        setIsAssigning(true);
+        try {
+            const token = getToken ? await getToken() : "demo_token";
+            const { data } = await api.put(
+                `/api/tasks/${task.id}`,
+                {
+                    assigneeId: assigneeId || undefined,
+                    assigneeEmail: assigneeEmail || undefined,
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (data?.task) {
+                setTask(data.task);
+                dispatch(updateTaskInStore(data.task));
+            }
+            toast.success("Task reassigned & notification email dispatched!");
+            setIsReassignOpen(false);
+            setCustomAssigneeEmail("");
+        } catch (err) {
+            toast.error(err?.response?.data?.message || "Failed to update assignee");
+        } finally {
+            setIsAssigning(false);
+        }
     };
 
     const handleAddComment = async () => {
@@ -247,14 +303,75 @@ const TaskDetails = () => {
                         <hr className="border-zinc-200 dark:border-zinc-800 my-4" />
 
                         <div className="flex flex-col gap-3 text-sm text-gray-700 dark:text-zinc-300">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-zinc-500 font-medium">Assignee</span>
-                                <div className="flex items-center gap-2">
-                                    <img src={task.assignee?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"} className="size-5 rounded-full object-cover" alt="avatar" />
-                                    <span className="text-xs font-medium">{task.assignee?.name || "Unassigned"}</span>
+                            <div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500 font-medium">Assignee</span>
+                                    <button
+                                        onClick={() => setIsReassignOpen(!isReassignOpen)}
+                                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium cursor-pointer"
+                                    >
+                                        {isReassignOpen ? "Close" : "Reassign / Invite"}
+                                    </button>
                                 </div>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                    <img src={task.assignee?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"} className="size-6 rounded-full object-cover border border-zinc-200 dark:border-zinc-700" alt="avatar" />
+                                    <div>
+                                        <p className="text-xs font-medium">{task.assignee?.name || "Unassigned"}</p>
+                                        {task.assignee?.email && (
+                                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{task.assignee.email}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {isReassignOpen && (
+                                    <div className="mt-3 p-3 bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-lg space-y-2">
+                                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Assign to existing member:</p>
+                                        <select
+                                            onChange={(e) => {
+                                                if (e.target.value) handleAssignMember(e.target.value, null);
+                                            }}
+                                            disabled={isAssigning}
+                                            className="w-full text-xs p-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200"
+                                            defaultValue=""
+                                        >
+                                            <option value="" disabled>Select a member...</option>
+                                            {availableMembers.map((m) => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.name} ({m.email})
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300 pt-1">Or invite by email:</p>
+                                        <div className="flex items-center gap-1.5">
+                                            <input
+                                                type="email"
+                                                placeholder="teammate@company.com"
+                                                value={customAssigneeEmail}
+                                                onChange={(e) => setCustomAssigneeEmail(e.target.value)}
+                                                className="w-full text-xs p-1.5 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    if (customAssigneeEmail.trim()) {
+                                                        handleAssignMember(null, customAssigneeEmail.trim());
+                                                    }
+                                                }}
+                                                disabled={isAssigning || !customAssigneeEmail.trim()}
+                                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded text-xs font-medium shrink-0 cursor-pointer"
+                                            >
+                                                Invite
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400">
+                                            <Mail className="size-3 shrink-0" />
+                                            <span>Sends task invitation email instantly</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex items-center justify-between">
+
+                            <div className="flex items-center justify-between pt-1">
                                 <span className="text-xs text-zinc-500 font-medium">Due Date</span>
                                 <div className="flex items-center gap-1.5 text-xs">
                                     <CalendarIcon className="size-3.5 text-gray-500 dark:text-zinc-400" />

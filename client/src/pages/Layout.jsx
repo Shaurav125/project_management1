@@ -7,7 +7,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { fetchWorkspaces } from '../features/workspaceSlice'
 import { loadTheme } from '../features/themeSlice'
 import { Loader2Icon } from 'lucide-react'
-import { motion, AnimatePresence } from 'motion/react'
 
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -24,7 +23,7 @@ const Layout = () => {
 
     // Initial load of workspaces
     useEffect(() => {
-        if (isLoaded && user && workspaces.length === 0) {
+        if (isLoaded && user) {
             dispatch(fetchWorkspaces({ getToken }))
         }
     }, [user, isLoaded])
@@ -64,19 +63,8 @@ const Layout = () => {
             <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-                <div className="flex-1 h-full p-6 xl:p-10 xl:px-16 overflow-y-auto">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={location.pathname}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                            className="w-full"
-                        >
-                            <Outlet />
-                        </motion.div>
-                    </AnimatePresence>
+                <div className="flex-1 h-full p-6 xl:p-10 xl:px-16 overflow-y-auto animate-in fade-in duration-200">
+                    <Outlet />
                 </div>
             </div>
         </div>

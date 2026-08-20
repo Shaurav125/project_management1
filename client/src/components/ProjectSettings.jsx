@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { Plus, Save, Crown, Trash2, ShieldCheck, UserPlus, Sparkles, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AppAuth";
@@ -11,6 +12,7 @@ import AddProjectMember from "./AddProjectMember";
 export default function ProjectSettings({ project }) {
     
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { getToken } = useAuth();
     const currentWorkspace = useSelector((state) => state.workspace?.currentWorkspace || null);
 
@@ -29,6 +31,8 @@ export default function ProjectSettings({ project }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeletingProject, setIsDeletingProject] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [memberToDelete, setMemberToDelete] = useState(null);
+    const [isRemovingMember, setIsRemovingMember] = useState(false);
 
     useEffect(() => {
         if (project) {
@@ -73,43 +77,60 @@ export default function ProjectSettings({ project }) {
     };
 
     const handleSetLead = async (userIdOrEmail) => {
-        if (!project?.id || !userIdOrEmail) return;
-        const toastId = toast.loading("Updating project lead...");
+        if (!project?.id) return;
+        const targetLead = (!userIdOrEmail || userIdOrEmail === "none" || userIdOrEmail === "unassigned") ? "" : userIdOrEmail;
+        const isClearing = !targetLead;
+
+        const toastId = toast.loading(isClearing ? "Removing project lead..." : "Setting project lead...");
         try {
             const token = getToken ? await getToken() : "demo_token";
             try {
-                await api.post(`/api/projects/${project.id}/setLead`, { team_lead: userIdOrEmail }, { headers: { Authorization: `Bearer ${token}` } });
+                await api.post(
+                    `/api/projects/${project.id}/setLead`,
+                    { team_lead: targetLead, leadUserId: targetLead },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
             } catch (err) {
                 console.warn("Set lead notice:", err);
             }
 
-            dispatch(setProjectLead({ projectId: project.id, leadUserId: userIdOrEmail }));
-            setFormData((prev) => ({ ...prev, team_lead: userIdOrEmail }));
-            toast.success("Project lead updated", { id: toastId });
+            dispatch(setProjectLead({ projectId: project.id, leadUserId: targetLead }));
+            setFormData((prev) => ({ ...prev, team_lead: targetLead }));
+            toast.success(isClearing ? "Project lead removed" : "Project lead updated", { id: toastId });
         } catch (error) {
             toast.error("Failed to update project lead", { id: toastId });
         }
     };
 
-    const handleRemoveMember = async (userId, memberEmail) => {
-        if (!project?.id) return;
-        if (project.team_lead === userId || project.team_lead === memberEmail) {
-            return toast.error("Cannot remove the active Project Lead. Please assign a new lead first.");
-        }
+    const handleConfirmRemoveMember = async () => {
+        if (!project?.id || !memberToDelete) return;
+        const { userId, email, name, isLead } = memberToDelete;
+        setIsRemovingMember(true);
+        const toastId = toast.loading(`Removing ${name} from project...`);
 
-        const toastId = toast.loading("Removing member...");
         try {
             const token = getToken ? await getToken() : "demo_token";
             try {
-                await api.post(`/api/projects/${project.id}/removeMember`, { userId, email: memberEmail }, { headers: { Authorization: `Bearer ${token}` } });
+                await api.post(
+                    `/api/projects/${project.id}/removeMember`,
+                    { userId, memberUserId: userId, email, memberEmail: email },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
             } catch (err) {
                 console.warn("Remove member notice:", err);
             }
 
-            dispatch(removeProjectMember({ projectId: project.id, userId }));
-            toast.success("Member removed from project", { id: toastId });
+            dispatch(removeProjectMember({ projectId: project.id, userId, email }));
+            if (isLead || formData.team_lead === userId || formData.team_lead === email) {
+                setFormData((prev) => ({ ...prev, team_lead: "" }));
+            }
+
+            toast.success(`${name} removed and unassigned from tasks`, { id: toastId });
+            setMemberToDelete(null);
         } catch (error) {
             toast.error("Failed to remove member", { id: toastId });
+        } finally {
+            setIsRemovingMember(false);
         }
     };
 
@@ -119,18 +140,23 @@ export default function ProjectSettings({ project }) {
         const toastId = toast.loading("Deleting project from database...");
         try {
             const token = getToken ? await getToken() : "demo_token";
-            try {
-                await api.delete(`/api/projects/${project.id}`, { headers: { Authorization: `Bearer ${token}` } });
-            } catch (err) {
-                console.warn("Delete project notice:", err);
-            }
+            await api.delete(`/api/projects/${project.id}`, { headers: { Authorization: `Bearer ${token}` } });
 
             dispatch(deleteProject(project.id));
-            toast.success("Project deleted successfully", { id: toastId });
+            toast.success("Project deleted from database", { id: toastId });
             setShowDeleteConfirm(false);
-            window.location.href = "/projects";
+            navigate("/projects", { replace: true });
         } catch (error) {
-            toast.error("Failed to delete project", { id: toastId });
+            console.error("Delete project error:", error);
+            // Even if server returned error, check if 404 (already deleted)
+            if (error?.response?.status === 404) {
+                dispatch(deleteProject(project.id));
+                toast.success("Project removed", { id: toastId });
+                setShowDeleteConfirm(false);
+                navigate("/projects", { replace: true });
+            } else {
+                toast.error(error?.response?.data?.message || "Failed to delete project from database", { id: toastId });
+            }
         } finally {
             setIsDeletingProject(false);
         }
@@ -247,11 +273,11 @@ export default function ProjectSettings({ project }) {
                             onChange={(e) => {
                                 const val = e.target.value;
                                 setFormData({ ...formData, team_lead: val });
-                                if (val) handleSetLead(val);
+                                handleSetLead(val);
                             }}
                             className="w-full px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-800 text-zinc-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                         >
-                            <option value="">Select Project Lead</option>
+                            <option value="">No Lead Assigned (Unassigned)</option>
                             {projectMembers.map((m) => {
                                 const val = m.user?.id || m.userId || m.user?.email;
                                 return (
@@ -329,7 +355,7 @@ export default function ProjectSettings({ project }) {
                                 const userId = member.user?.id || member.userId || member.id;
                                 const email = member.user?.email || "";
                                 const name = member.user?.name || email.split("@")[0] || "Member";
-                                const isLead = project.team_lead === userId || project.team_lead === email || project.team_lead === member.user?.name;
+                                const isLead = project.team_lead === userId || project.team_lead === email || project.team_lead === member.user?.name || formData.team_lead === userId || formData.team_lead === email;
 
                                 return (
                                     <div
@@ -371,12 +397,21 @@ export default function ProjectSettings({ project }) {
                                                 >
                                                     Set Lead
                                                 </button>
-                                            ) : null}
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetLead("")}
+                                                    className="px-2.5 py-1 rounded text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition cursor-pointer"
+                                                    title="Remove Lead status"
+                                                >
+                                                    Remove Lead
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
-                                                onClick={() => handleRemoveMember(userId, email)}
+                                                onClick={() => setMemberToDelete({ userId, email, name, isLead })}
                                                 className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
-                                                title="Remove member from project"
+                                                title="Delete member from project"
                                             >
                                                 <Trash2 className="size-4" />
                                             </button>
@@ -457,6 +492,53 @@ export default function ProjectSettings({ project }) {
                                 >
                                     <Trash2 className="size-3.5" />
                                     {isDeletingProject ? "Deleting..." : "Yes, Delete Project"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Member Confirmation Modal */}
+                {memberToDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-2xl max-w-md w-full p-6 space-y-4">
+                            <div className="flex items-center gap-3 text-red-600">
+                                <div className="p-3 bg-red-100 dark:bg-red-950/60 rounded-xl">
+                                    <Trash2 className="size-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Remove Team Member?</h3>
+                                    <p className="text-xs text-zinc-500">Remove from project & database</p>
+                                </div>
+                            </div>
+                            <div className="text-sm text-zinc-600 dark:text-zinc-300 space-y-2">
+                                <p>
+                                    Are you sure you want to remove <span className="font-semibold text-zinc-900 dark:text-zinc-100">"{memberToDelete.name}"</span> ({memberToDelete.email}) from this project?
+                                </p>
+                                <ul className="text-xs text-zinc-500 dark:text-zinc-400 list-disc list-inside space-y-1 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700/60">
+                                    <li>Member will be removed from the project in the database.</li>
+                                    <li>Any tasks currently assigned to this member will be unassigned.</li>
+                                    {memberToDelete.isLead && (
+                                        <li className="text-amber-600 dark:text-amber-400 font-medium">Their Project Lead role will be cleared.</li>
+                                    )}
+                                </ul>
+                            </div>
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                <button
+                                    type="button"
+                                    onClick={() => setMemberToDelete(null)}
+                                    className="px-4 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isRemovingMember}
+                                    onClick={handleConfirmRemoveMember}
+                                    className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                    <Trash2 className="size-3.5" />
+                                    {isRemovingMember ? "Removing..." : "Remove Member"}
                                 </button>
                             </div>
                         </div>

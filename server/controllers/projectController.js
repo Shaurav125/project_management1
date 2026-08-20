@@ -1,4 +1,5 @@
 import prisma from "../configs/prisma.js";
+import { sendProjectInviteEmail } from "../configs/nodemailer.js";
 
 // Create project
 export const createProject = async (req, res) => {
@@ -169,6 +170,19 @@ export const addMember = async (req, res) => {
             },
         });
 
+        // Dispatch Project Invite Email
+        const origin = req.get('origin') || process.env.VITE_BASEURL || 'http://localhost:3000';
+        try {
+            await sendProjectInviteEmail({
+                memberEmail: user.email,
+                memberName: user.name,
+                projectName: project.name,
+                projectUrl: `${origin}/projectsDetail?id=${projectId}`,
+            });
+        } catch (mailErr) {
+            console.warn("Project invite email notice:", mailErr.message);
+        }
+
         res.json({
             member: {
                 ...member,
@@ -192,61 +206,109 @@ export const removeMember = async (req, res) => {
     try {
         const { userId } = await req.auth();
         const { projectId } = req.params;
-        const { memberUserId, email } = req.body;
+        const { memberUserId, userId: bodyUserId, email, memberEmail } = req.body;
 
-        let targetUserId = memberUserId;
-        if (!targetUserId && email) {
-            const u = await prisma.user.findUnique({ where: { email } });
+        const targetEmail = email || memberEmail;
+        let targetUserId = memberUserId || bodyUserId;
+        if (!targetUserId && targetEmail) {
+            const u = await prisma.user.findUnique({ where: { email: targetEmail } });
             if (u) targetUserId = u.id;
         }
 
-        if (!targetUserId) {
+        if (!targetUserId && !targetEmail) {
             return res.status(400).json({ message: "Member identifier is required" });
         }
 
-        if (prisma.projectMember.deleteMany) {
+        // Check if this project exists
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            include: { members: { include: { user: true } } }
+        });
+
+        if (!project) {
+            return res.status(404).json({ message: "Project not found" });
+        }
+
+        // If the removed member was the active team lead, clear the lead
+        const isCurrentLead = (targetUserId && project.team_lead === targetUserId) ||
+                              (targetEmail && (project.team_lead === targetEmail || project.members.some(m => m.user?.email === targetEmail && m.userId === project.team_lead)));
+        
+        if (isCurrentLead) {
+            await prisma.project.update({
+                where: { id: projectId },
+                data: { team_lead: null }
+            }).catch(e => console.warn("Project lead clear notice:", e.message));
+        }
+
+        // Unassign any tasks in this project assigned to this user
+        if (targetUserId) {
+            await prisma.task.updateMany({
+                where: {
+                    projectId,
+                    assigneeId: targetUserId
+                },
+                data: {
+                    assigneeId: null
+                }
+            }).catch(e => console.warn("Task unassign notice:", e.message));
+        }
+
+        // Delete from ProjectMember relation
+        if (prisma.projectMember?.deleteMany) {
             await prisma.projectMember.deleteMany({
                 where: {
                     projectId,
-                    userId: targetUserId,
+                    ...(targetUserId ? { userId: targetUserId } : {})
                 }
-            });
+            }).catch(e => console.warn("ProjectMember delete notice:", e.message));
         }
 
-        res.json({ message: "Member removed from project successfully" });
+        res.json({
+            success: true,
+            message: "Member removed from project and tasks unassigned successfully",
+            removedUserId: targetUserId,
+            clearedLead: isCurrentLead
+        });
     } catch (error) {
         console.error("removeMember error:", error);
         res.status(500).json({ message: error.code || error.message });
     }
 };
 
-// Set Project Lead
+// Set or Clear Project Lead
 export const setProjectLead = async (req, res) => {
     try {
         const { userId } = await req.auth();
         const { projectId } = req.params;
-        const { leadUserId, leadEmail } = req.body;
+        const { leadUserId, leadEmail, team_lead, userId: bodyUserId, email } = req.body;
 
-        let targetLeadId = leadUserId;
-        if (!targetLeadId && leadEmail) {
-            let u = await prisma.user.findUnique({ where: { email: leadEmail } });
+        const rawLead = leadUserId || team_lead || bodyUserId || leadEmail || email;
+
+        // If explicitly set to empty/none/null, clear the lead
+        if (!rawLead || rawLead === "none" || rawLead === "unassigned") {
+            const updatedProject = await prisma.project.update({
+                where: { id: projectId },
+                data: { team_lead: null }
+            });
+            return res.json({ project: updatedProject, message: "Project lead cleared successfully" });
+        }
+
+        let targetLeadId = rawLead;
+        if (rawLead.includes("@")) {
+            let u = await prisma.user.findUnique({ where: { email: rawLead } });
             if (!u) {
                 u = await prisma.user.create({
                     data: {
-                        name: leadEmail.split('@')[0],
-                        email: leadEmail,
-                        image: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&seed=${encodeURIComponent(leadEmail)}`,
+                        name: rawLead.split('@')[0].replace(/[\._]/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+                        email: rawLead,
+                        image: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&seed=${encodeURIComponent(rawLead)}`,
                     }
                 });
             }
             targetLeadId = u.id;
         }
 
-        if (!targetLeadId) {
-            return res.status(400).json({ message: "Lead identifier is required" });
-        }
-
-        // Ensure lead is also a project member
+        // Ensure lead is in project members
         const project = await prisma.project.findUnique({
             where: { id: projectId },
             include: { members: true },
@@ -257,13 +319,13 @@ export const setProjectLead = async (req, res) => {
         }
 
         const isMember = project.members?.some(m => m.userId === targetLeadId);
-        if (!isMember) {
+        if (!isMember && prisma.projectMember?.create) {
             await prisma.projectMember.create({
                 data: {
                     userId: targetLeadId,
                     projectId,
                 }
-            });
+            }).catch(e => console.warn("Auto-add lead to members notice:", e.message));
         }
 
         const updatedProject = await prisma.project.update({
@@ -282,52 +344,51 @@ export const setProjectLead = async (req, res) => {
 export const deleteProject = async (req, res) => {
     try {
         const { userId } = await req.auth();
-        const projectId = req.params.projectId || req.params.id || req.body.projectId || req.body.id;
+        const projectId = req.params.projectId || req.params.id || req.body?.projectId || req.body?.id;
 
         if (!projectId) {
             return res.status(400).json({ message: "Project ID is required" });
         }
 
-        const project = await prisma.project.findUnique({
-            where: { id: projectId },
-            include: {
-                tasks: true,
-                members: true,
-                workspace: true,
-            }
-        });
-
-        if (!project) {
-            return res.status(404).json({ message: "Project not found" });
+        // 1. Find all tasks for this project to clean up their comments
+        let taskIds = [];
+        try {
+            const projectTasks = await prisma.task.findMany({
+                where: { projectId },
+                select: { id: true }
+            });
+            taskIds = projectTasks.map(t => t.id);
+        } catch (e) {
+            console.warn("Fetch tasks notice during project delete:", e.message);
         }
 
-        const taskIds = project.tasks?.map(t => t.id) || [];
-
-        // Delete comments on project tasks
+        // 2. Delete all comments on tasks belonging to this project
         if (taskIds.length > 0) {
             await prisma.comment.deleteMany({
                 where: { taskId: { in: taskIds } }
             }).catch(e => console.warn("Comments deletion notice:", e.message));
-
-            await prisma.task.deleteMany({
-                where: { id: { in: taskIds } }
-            }).catch(e => console.warn("Tasks deletion notice:", e.message));
         }
 
-        // Delete project members
+        // 3. Delete all tasks belonging to this project
+        await prisma.task.deleteMany({
+            where: { projectId }
+        }).catch(e => console.warn("Tasks deletion notice:", e.message));
+
+        // 4. Delete all project members for this project
         await prisma.projectMember.deleteMany({
-            where: { projectId: project.id }
+            where: { projectId }
         }).catch(e => console.warn("Project members deletion notice:", e.message));
 
-        // Delete the project
-        await prisma.project.delete({
-            where: { id: project.id }
+        // 5. Delete the project itself from PostgreSQL database
+        const deleteResult = await prisma.project.deleteMany({
+            where: { id: projectId }
         });
 
         res.json({
             success: true,
-            message: "Project and all associated tasks deleted successfully",
-            deletedId: projectId
+            message: "Project and all associated data permanently deleted from database",
+            deletedId: projectId,
+            count: deleteResult.count
         });
     } catch (error) {
         console.error("deleteProject error:", error);
