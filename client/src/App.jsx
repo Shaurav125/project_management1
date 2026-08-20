@@ -7,7 +7,7 @@ import Team from './pages/Team'
 import ProjectDetails from './pages/ProjectDetails'
 import TaskDetails from './pages/TaskDetails'
 import Settings from './pages/Settings'
-import { SignIn, SignUp, CreateOrganization } from '@clerk/clerk-react'
+import { SignIn, SignUp, CreateOrganization } from './context/AppAuth'
 
 const App = () => {
     return (

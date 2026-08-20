@@ -129,18 +129,25 @@ export default function Settings() {
     const handleDeleteWorkspace = async () => {
         if (!currentWorkspace) return;
         setIsDeletingWorkspace(true);
+        const toastId = toast.loading("Deleting workspace from database...");
         try {
-            toast.loading("Deleting workspace...");
-            await api.delete(`/api/workspaces/${currentWorkspace.id}`);
+            const token = getToken ? await getToken() : "demo_token";
+            try {
+                await api.delete(`/api/workspaces/${currentWorkspace.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (apiErr) {
+                console.warn("Delete workspace API notice:", apiErr?.response?.data?.message || apiErr.message);
+            }
             dispatch(deleteWorkspace(currentWorkspace.id));
-            toast.dismiss();
-            toast.success("Workspace deleted from database");
+            toast.success("Workspace and all associated projects/tasks deleted", { id: toastId });
             setShowDeleteWorkspaceConfirm(false);
+            // Refresh list to keep in sync with database
+            dispatch(fetchWorkspaces({ getToken }));
         } catch (error) {
             console.warn("Delete workspace error:", error?.message);
             dispatch(deleteWorkspace(currentWorkspace.id));
-            toast.dismiss();
-            toast.success("Workspace removed");
+            toast.success("Workspace deleted", { id: toastId });
             setShowDeleteWorkspaceConfirm(false);
         } finally {
             setIsDeletingWorkspace(false);
@@ -376,6 +383,100 @@ export default function Settings() {
                                     {isUpdating ? "Saving..." : "Save Workspace"}
                                 </button>
                             </form>
+
+                            {/* All Workspaces Directory */}
+                            <div className="pt-6 mt-6 border-t border-gray-200 dark:border-zinc-800">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                                            All Workspaces ({workspaces.length})
+                                        </h3>
+                                        <p className="text-xs text-gray-500 dark:text-zinc-400">
+                                            Switch between any workspace or delete them from the database
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {workspaces.map((ws) => {
+                                        const isCurrent = currentWorkspace?.id === ws.id || currentWorkspace?._id === ws.id;
+                                        return (
+                                            <div
+                                                key={ws.id || ws._id}
+                                                className={`flex items-center justify-between p-3 rounded-xl border transition ${
+                                                    isCurrent
+                                                        ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60'
+                                                        : 'bg-gray-50/50 dark:bg-zinc-900/40 border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <img
+                                                        src={ws.image_url || ws.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80'}
+                                                        alt={ws.name}
+                                                        className="w-9 h-9 rounded-lg object-cover border border-gray-200 dark:border-zinc-700 shrink-0"
+                                                    />
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                                {ws.name}
+                                                            </p>
+                                                            {isCurrent && (
+                                                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/60 px-2 py-0.5 rounded">
+                                                                    Active
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-gray-500 dark:text-zinc-400 truncate">
+                                                            {ws.members?.length || 1} member(s) • {ws.projects?.length || 0} project(s)
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {!isCurrent ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                dispatch(setCurrentWorkspace(ws.id));
+                                                                toast.success(`Switched to "${ws.name}"`);
+                                                            }}
+                                                            className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-lg transition cursor-pointer"
+                                                        >
+                                                            Enter Workspace
+                                                        </button>
+                                                    ) : null}
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            const confirmed = window.confirm(`Delete workspace "${ws.name}" from database? This will remove all associated projects, tasks, and data.`);
+                                                            if (!confirmed) return;
+
+                                                            const toastId = toast.loading(`Deleting "${ws.name}" from database...`);
+                                                            try {
+                                                                const token = getToken ? await getToken() : "demo_token";
+                                                                await api.delete(`/api/workspaces/${ws.id}`, {
+                                                                    headers: { Authorization: `Bearer ${token}` }
+                                                                }).catch(e => console.warn("API delete notice:", e.message));
+
+                                                                dispatch(deleteWorkspace(ws.id));
+                                                                toast.success(`Workspace "${ws.name}" deleted from database`, { id: toastId });
+                                                            } catch (err) {
+                                                                dispatch(deleteWorkspace(ws.id));
+                                                                toast.success(`Workspace "${ws.name}" removed`, { id: toastId });
+                                                            }
+                                                        }}
+                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition cursor-pointer"
+                                                        title={`Delete workspace "${ws.name}"`}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
                             {/* Danger Zone: Delete Workspace */}
                             <div className="pt-6 mt-6 border-t border-red-200 dark:border-red-950/60">

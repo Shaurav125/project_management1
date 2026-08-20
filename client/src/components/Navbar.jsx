@@ -1,5 +1,5 @@
 import { SearchIcon, PanelLeft } from 'lucide-react'
-import { UserButton } from '@clerk/clerk-react'
+import { UserButton } from '../context/AppAuth'
 import { useDispatch, useSelector } from 'react-redux'
 import { toggleTheme } from '../features/themeSlice'
 import { MoonIcon, SunIcon } from 'lucide-react'
