@@ -1,7 +1,6 @@
 import { FolderOpen, CheckCircle, Users, AlertTriangle } from "lucide-react";
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
-import { motion } from "motion/react";
 
 export default function StatsGrid() {
     const currentWorkspace = useSelector(
@@ -94,13 +93,9 @@ export default function StatsGrid() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-9">
             {statCards.map(
                 ({ icon: Icon, title, value, subtitle, bgColor, textColor }, i) => (
-                    <motion.div
+                    <div
                         key={title}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
-                        whileHover={{ y: -3, transition: { duration: 0.15 } }}
-                        className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all duration-200 rounded-xl shadow-xs"
+                        className="bg-white dark:bg-zinc-900/50 dark:backdrop-blur-md border border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:-translate-y-1 transition-all duration-200 rounded-xl shadow-xs"
                     >
                         <div className="p-6 py-4">
                             <div className="flex items-start justify-between">
@@ -122,7 +117,7 @@ export default function StatsGrid() {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 )
             )}
         </div>
